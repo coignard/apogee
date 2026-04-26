@@ -21,6 +21,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy
+    - name: Install ALSA
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev
     - name: Run clippy
       run: cargo clippy --release -- -D warnings
 
