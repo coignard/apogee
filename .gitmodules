@@ -1,0 +1,3 @@
+[submodule "iz80"]
+	path = iz80
+	url = https://github.com/coignard/iz80
