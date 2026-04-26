@@ -817,7 +817,6 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 [[package]]
 name = "iz80"
 version = "0.4.4"
-source = "git+https://github.com/coignard/iz80.git#f3e7ec0c2b6db4fbab607c20cd6b21befcd0cfaf"
 
 [[package]]
 name = "jni"

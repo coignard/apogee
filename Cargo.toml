@@ -25,7 +25,7 @@ rfd = "0.17.2"
 winit = "0.30.13"
 
 [patch.crates-io]
-iz80 = { git = "https://github.com/coignard/iz80.git" }
+iz80 = { path = "iz80" }
 
 [[bin]]
 name = "apogee"
