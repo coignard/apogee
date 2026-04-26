@@ -1,0 +1,39 @@
+[package]
+name = "apogee"
+version = "0.1.0"
+authors = [
+    "René Coignard <contact@renecoignard.com>"
+]
+edition = "2024"
+rust-version = "1.95"
+license = "GPL-3.0-or-later"
+description = "Cycle-accurate Apogee BK-01 emulator"
+homepage = "https://coignard.org/apogee"
+repository = "https://github.com/coignard/apogee"
+readme = "README.md"
+keywords = ["midi", "sequencer", "livecoding", "tui", "orca"]
+categories = ["command-line-utilities", "multimedia::audio"]
+exclude = [".github/*"]
+
+[dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
+cpal = "0.17.3"
+crossbeam-channel = "0.5.15"
+iz80 = "0.4.4"
+pixels = "0.17.0"
+rfd = "0.17.2"
+winit = "0.30.13"
+
+[patch.crates-io]
+iz80 = { git = "https://github.com/coignard/iz80.git" }
+
+[[bin]]
+name = "apogee"
+path = "src/main.rs"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = 3

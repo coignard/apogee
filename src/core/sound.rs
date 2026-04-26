@@ -1,0 +1,65 @@
+// This file is part of Apogee.
+//
+// Copyright (c) 2026  René Coignard <contact@renecoignard.com>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+pub struct AudioMixer {
+    sample_rate: u32,
+    cpu_freq: u32,
+    audio_phase: u32,
+    audio_sum: i32,
+    audio_samples: u32,
+}
+
+impl AudioMixer {
+    pub fn new(sample_rate: u32, cpu_freq: u32) -> Self {
+        Self {
+            sample_rate,
+            cpu_freq,
+            audio_phase: 0,
+            audio_sum: 0,
+            audio_samples: 0,
+        }
+    }
+
+    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+        self.sample_rate = sample_rate;
+    }
+
+    pub fn tick(&mut self, vi53_mixed: i32, beeper_state: bool) -> Option<f32> {
+        let mut mixed = vi53_mixed;
+        mixed += if beeper_state { 1 } else { -1 };
+
+        self.audio_sum += mixed;
+        self.audio_samples += 1;
+
+        self.audio_phase += self.sample_rate;
+
+        if self.audio_phase >= self.cpu_freq {
+            self.audio_phase -= self.cpu_freq;
+
+            if self.audio_samples > 0 {
+                let avg_sample = self.audio_sum as f32 / self.audio_samples as f32;
+                let out_sample = avg_sample * 0.05;
+
+                self.audio_sum = 0;
+                self.audio_samples = 0;
+
+                return Some(out_sample);
+            }
+        }
+        None
+    }
+}
