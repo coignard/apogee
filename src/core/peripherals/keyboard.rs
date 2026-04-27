@@ -15,14 +15,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const MATRIX_SIZE: usize = 9;
+const MODIFIER_ROW: usize = 8;
+const MODIFIER_PORT_C_MASK: u8 = 0xE0;
+const PORT_C_FIXED_BITS: u8 = 0x0F;
+
 #[derive(Clone, Copy)]
 pub struct ApogeeKeyboard {
-    pub matrix: [u8; 9],
+    pub matrix: [u8; MATRIX_SIZE],
 }
 
 impl ApogeeKeyboard {
     pub fn new() -> Self {
-        Self { matrix: [0xFF; 9] }
+        Self {
+            matrix: [0xFF; MATRIX_SIZE],
+        }
     }
 
     pub fn update_key(&mut self, row: usize, col: usize, pressed: bool) {
@@ -41,7 +48,7 @@ impl ApogeeKeyboard {
                 kbd_res &= self.matrix[k];
             }
         }
-        let port_c_in = (self.matrix[8] & 0xE0) | 0x0F;
+        let port_c_in = (self.matrix[MODIFIER_ROW] & MODIFIER_PORT_C_MASK) | PORT_C_FIXED_BITS;
         (kbd_res, port_c_in)
     }
 }

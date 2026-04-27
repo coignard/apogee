@@ -17,8 +17,14 @@
 
 use crate::core::chips::kr580vg75::Kr580Vg75;
 
-pub const SCREEN_WIDTH: u32 = 78 * 6;
-pub const SCREEN_HEIGHT: u32 = 30 * 10;
+const CHAR_WIDTH: usize = 6;
+const CHARS_PER_ROW: usize = 78;
+const ROWS_PER_SCREEN: usize = 30;
+const LINES_PER_ROW: usize = 10;
+const FONT_ALT_BANK_OFFSET: usize = 128;
+
+pub const SCREEN_WIDTH: u32 = (CHARS_PER_ROW * CHAR_WIDTH) as u32;
+pub const SCREEN_HEIGHT: u32 = (ROWS_PER_SCREEN * LINES_PER_ROW) as u32;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ColorMode {
@@ -74,7 +80,11 @@ impl VideoRenderer {
         let n_chars = vg75.n_chars() as usize;
 
         for row in 0..n_rows {
-            let chargen = if vg75.row_font_bank(row % 64) { 128 } else { 0 };
+            let chargen = if vg75.row_font_bank(row % 64) {
+                FONT_ALT_BANK_OFFSET
+            } else {
+                0
+            };
 
             for ln in 0..n_lines {
                 let lc = if vg75.font_down() {
@@ -150,8 +160,8 @@ impl VideoRenderer {
                         0xFF
                     };
 
-                    let px_base = x * 6;
-                    for col in 0..6 {
+                    let px_base = x * CHAR_WIDTH;
+                    for col in 0..CHAR_WIDTH {
                         let px = px_base + col;
                         if px >= SCREEN_WIDTH as usize {
                             continue;

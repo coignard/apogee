@@ -24,6 +24,21 @@ use super::chips::kr580vv55a::Kr580Vv55a;
 use super::peripherals::keyboard::ApogeeKeyboard;
 use super::peripherals::romdisk::RomDisk;
 
+pub mod memory_map {
+    pub const RAM_START: u16 = 0x0000;
+    pub const RAM_END: u16 = 0xEBFF;
+    pub const PIT_BASE: u16 = 0xEC00;
+    pub const PIT_END: u16 = 0xECFF;
+    pub const PPI_SYS_BASE: u16 = 0xED00;
+    pub const PPI_SYS_END: u16 = 0xEDFF;
+    pub const PPI_USR_BASE: u16 = 0xEE00;
+    pub const PPI_USR_END: u16 = 0xEEFF;
+    pub const CRTC_BASE: u16 = 0xEF00;
+    pub const CRTC_END: u16 = 0xEFFF;
+    pub const DMA_ROM_BASE: u16 = 0xF000;
+    pub const DMA_ROM_END: u16 = 0xFFFF;
+}
+
 pub struct ApogeeBus {
     pub(crate) ram: Box<[u8; 0x10000]>,
     pub(crate) system_rom: Vec<u8>,
@@ -58,20 +73,20 @@ impl ApogeeBus {
 impl Machine for ApogeeBus {
     fn peek(&mut self, addr: u16) -> u8 {
         match addr {
-            0x0000..=0xEBFF => self.ram[addr as usize],
-            0xEC00..=0xECFF => self.vi53.read(addr),
-            0xED00..=0xEDFF => {
+            memory_map::RAM_START..=memory_map::RAM_END => self.ram[addr as usize],
+            memory_map::PIT_BASE..=memory_map::PIT_END => self.vi53.read(addr),
+            memory_map::PPI_SYS_BASE..=memory_map::PPI_SYS_END => {
                 let kbd_mask = self.sys_vv55.port_a_out;
                 let (kbd_res, port_c_in) = self.keyboard.read_matrix(kbd_mask);
                 self.sys_vv55.read(addr, 0xFF, kbd_res, port_c_in)
             }
-            0xEE00..=0xEEFF => {
+            memory_map::PPI_USR_BASE..=memory_map::PPI_USR_END => {
                 let port_a_in = self.romdisk.read_data();
                 self.user_vv55.read(addr, port_a_in, 0xFF, 0xFF)
             }
-            0xEF00..=0xEFFF => self.vg75.read(addr),
-            0xF000..=0xFFFF => {
-                let idx = (addr - 0xF000) as usize;
+            memory_map::CRTC_BASE..=memory_map::CRTC_END => self.vg75.read(addr),
+            memory_map::DMA_ROM_BASE..=memory_map::DMA_ROM_END => {
+                let idx = (addr - memory_map::DMA_ROM_BASE) as usize;
                 if !self.system_rom.is_empty() {
                     self.system_rom[idx % self.system_rom.len()]
                 } else {
@@ -83,17 +98,17 @@ impl Machine for ApogeeBus {
 
     fn poke(&mut self, addr: u16, val: u8) {
         match addr {
-            0x0000..=0xEBFF => self.ram[addr as usize] = val,
-            0xEC00..=0xECFF => self.vi53.write(addr, val),
-            0xED00..=0xEDFF => self.sys_vv55.write(addr, val),
-            0xEE00..=0xEEFF => {
+            memory_map::RAM_START..=memory_map::RAM_END => self.ram[addr as usize] = val,
+            memory_map::PIT_BASE..=memory_map::PIT_END => self.vi53.write(addr, val),
+            memory_map::PPI_SYS_BASE..=memory_map::PPI_SYS_END => self.sys_vv55.write(addr, val),
+            memory_map::PPI_USR_BASE..=memory_map::PPI_USR_END => {
                 self.user_vv55.write(addr, val);
                 let port_b = self.user_vv55.port_b_out;
                 let port_c = self.user_vv55.port_c_out;
                 self.romdisk.update_addr(port_b, port_c);
             }
-            0xEF00..=0xEFFF => self.vg75.write(addr, val),
-            0xF000..=0xFFFF => self.vt57.write(addr, val),
+            memory_map::CRTC_BASE..=memory_map::CRTC_END => self.vg75.write(addr, val),
+            memory_map::DMA_ROM_BASE..=memory_map::DMA_ROM_END => self.vt57.write(addr, val),
         }
     }
 

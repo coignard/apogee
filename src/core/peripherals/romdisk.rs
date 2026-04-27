@@ -15,6 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const BANK_SELECT_MASK: u8 = 0x80;
+const BANK_INDEX_MASK: u8 = 0x7F;
+
+const ADDR_PORT_B_CLEAR_MASK: usize = !0xFF;
+const ADDR_PORT_C_CLEAR_MASK: usize = !0x7F00;
+const ADDR_PAGE_KEEP_MASK: usize = 0x7FFF;
+
 pub struct RomDisk {
     data: Vec<u8>,
     cur_addr: usize,
@@ -57,15 +64,15 @@ impl RomDisk {
     }
 
     pub fn update_addr(&mut self, port_b: u8, port_c: u8) {
-        let new_a15 = (port_c & 0x80) != 0;
-        let c_val = (port_c & 0x7F) as usize;
+        let new_a15 = (port_c & BANK_SELECT_MASK) != 0;
+        let c_val = (port_c & BANK_INDEX_MASK) as usize;
 
         let mut addr = self.cur_addr;
-        addr = (addr & !0xFF) | (port_b as usize);
-        addr = (addr & !0x7F00) | (c_val << 8);
+        addr = (addr & ADDR_PORT_B_CLEAR_MASK) | (port_b as usize);
+        addr = (addr & ADDR_PORT_C_CLEAR_MASK) | (c_val << 8);
 
         if new_a15 && !self.old_a15 {
-            addr = (addr & 0x7FFF) | ((addr & self.mask) << 15);
+            addr = (addr & ADDR_PAGE_KEEP_MASK) | ((addr & self.mask) << 15);
         }
 
         self.old_a15 = new_a15;

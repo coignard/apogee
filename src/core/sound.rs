@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const VOLUME_SCALE: f32 = 0.05;
+
 pub struct AudioMixer {
     sample_rate: u32,
     cpu_freq: u32,
@@ -52,7 +54,7 @@ impl AudioMixer {
 
             if self.audio_samples > 0 {
                 let avg_sample = self.audio_sum as f32 / self.audio_samples as f32;
-                let out_sample = avg_sample * 0.05;
+                let out_sample = avg_sample * VOLUME_SCALE;
 
                 self.audio_sum = 0;
                 self.audio_samples = 0;

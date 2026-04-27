@@ -15,14 +15,45 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum PitRwMode {
+    #[default]
+    Latch,
+    LsbOnly,
+    MsbOnly,
+    LsbThenMsb,
+}
+
+impl PitRwMode {
+    fn from_u8(val: u8) -> Self {
+        match val {
+            1 => Self::LsbOnly,
+            2 => Self::MsbOnly,
+            3 => Self::LsbThenMsb,
+            _ => Self::Latch,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum PitPhase {
+    #[default]
+    Lsb,
+    Msb,
+}
+
+const PIT_MAX_COUNT: u32 = 0x10000;
+const PORT_MASK: u16 = 3;
+const PORT_CWR: u16 = 3;
+
 #[derive(Clone, Copy, Default)]
 struct TimerChannel {
     mode: u8,
-    rw_mode: u8,
+    rw_mode: PitRwMode,
     reload: u16,
     counter: u32,
     latch: u16,
-    phase: u8,
+    phase: PitPhase,
     out: bool,
     latched: bool,
     counting: bool,
@@ -43,7 +74,7 @@ impl TimerChannel {
         }
 
         let eff_val = if self.reload == 0 {
-            0x10000
+            PIT_MAX_COUNT
         } else {
             self.reload as u32
         };
@@ -104,7 +135,7 @@ impl Kr580Vi53 {
     }
 
     pub fn read(&mut self, port: u16) -> u8 {
-        let ch_idx = (port & 3) as usize;
+        let ch_idx = (port & PORT_MASK) as usize;
         if ch_idx < 3 {
             let ch = &mut self.channels[ch_idx];
 
@@ -119,25 +150,25 @@ impl Kr580Vi53 {
             };
 
             match ch.rw_mode {
-                1 => {
+                PitRwMode::LsbOnly => {
                     ch.latched = false;
                     (val & 0xFF) as u8
                 }
-                2 => {
+                PitRwMode::MsbOnly => {
                     ch.latched = false;
                     (val >> 8) as u8
                 }
-                3 => {
-                    if ch.phase == 0 {
-                        ch.phase = 1;
+                PitRwMode::LsbThenMsb => {
+                    if ch.phase == PitPhase::Lsb {
+                        ch.phase = PitPhase::Msb;
                         (val & 0xFF) as u8
                     } else {
-                        ch.phase = 0;
+                        ch.phase = PitPhase::Lsb;
                         ch.latched = false;
                         (val >> 8) as u8
                     }
                 }
-                _ => 0xFF,
+                PitRwMode::Latch => 0xFF,
             }
         } else {
             0xFF
@@ -145,58 +176,54 @@ impl Kr580Vi53 {
     }
 
     pub fn write(&mut self, port: u16, val: u8) {
-        let port_clean = port & 3;
-        match port_clean {
-            0..=2 => {
-                let ch_idx = port_clean as usize;
-                let ch = &mut self.channels[ch_idx];
-                match ch.rw_mode {
-                    1 => {
+        let port_clean = port & PORT_MASK;
+        if port_clean < PORT_CWR {
+            let ch_idx = port_clean as usize;
+            let ch = &mut self.channels[ch_idx];
+            match ch.rw_mode {
+                PitRwMode::LsbOnly => {
+                    ch.reload = (ch.reload & 0xFF00) | (val as u16);
+                    ch.trigger_load();
+                }
+                PitRwMode::MsbOnly => {
+                    ch.reload = (ch.reload & 0x00FF) | ((val as u16) << 8);
+                    ch.trigger_load();
+                }
+                PitRwMode::LsbThenMsb => {
+                    if ch.phase == PitPhase::Lsb {
                         ch.reload = (ch.reload & 0xFF00) | (val as u16);
-                        ch.trigger_load();
-                    }
-                    2 => {
+                        ch.phase = PitPhase::Msb;
+                        if ch.mode == 0 {
+                            ch.counting = false;
+                        }
+                    } else {
                         ch.reload = (ch.reload & 0x00FF) | ((val as u16) << 8);
+                        ch.phase = PitPhase::Lsb;
                         ch.trigger_load();
                     }
-                    3 => {
-                        if ch.phase == 0 {
-                            ch.reload = (ch.reload & 0xFF00) | (val as u16);
-                            ch.phase = 1;
-                            if ch.mode == 0 {
-                                ch.counting = false;
-                            }
-                        } else {
-                            ch.reload = (ch.reload & 0x00FF) | ((val as u16) << 8);
-                            ch.phase = 0;
-                            ch.trigger_load();
-                        }
+                }
+                PitRwMode::Latch => {}
+            }
+        } else if port_clean == PORT_CWR {
+            let ch_idx = ((val >> 6) & 3) as usize;
+            if ch_idx < 3 {
+                let ch = &mut self.channels[ch_idx];
+                let rw_mode_val = (val >> 4) & 3;
+                if rw_mode_val != 0 {
+                    ch.rw_mode = PitRwMode::from_u8(rw_mode_val);
+                    ch.mode = (val >> 1) & 7;
+                    ch.phase = PitPhase::Lsb;
+                    ch.counting = false;
+                    ch.out = ch.mode != 0;
+                } else if !ch.latched {
+                    let mut visual_counter = ch.counter;
+                    if ch.mode == 3 || ch.mode == 7 {
+                        visual_counter *= 2;
                     }
-                    _ => {}
+                    ch.latch = visual_counter as u16;
+                    ch.latched = true;
                 }
             }
-            3 => {
-                let ch_idx = ((val >> 6) & 3) as usize;
-                if ch_idx < 3 {
-                    let ch = &mut self.channels[ch_idx];
-                    let rw_mode = (val >> 4) & 3;
-                    if rw_mode != 0 {
-                        ch.rw_mode = rw_mode;
-                        ch.mode = (val >> 1) & 7;
-                        ch.phase = 0;
-                        ch.counting = false;
-                        ch.out = ch.mode != 0;
-                    } else if !ch.latched {
-                        let mut visual_counter = ch.counter;
-                        if ch.mode == 3 || ch.mode == 7 {
-                            visual_counter *= 2;
-                        }
-                        ch.latch = visual_counter as u16;
-                        ch.latched = true;
-                    }
-                }
-            }
-            _ => {}
         }
     }
 
@@ -209,5 +236,11 @@ impl Kr580Vi53 {
             mixed += if ch.out { 1 } else { -1 };
         }
         mixed
+    }
+}
+
+impl Default for Kr580Vi53 {
+    fn default() -> Self {
+        Self::new()
     }
 }

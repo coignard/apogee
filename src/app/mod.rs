@@ -35,12 +35,16 @@ use crate::app::keyboard::map_keycode;
 use crate::app::video::{ColorMode, SCREEN_HEIGHT, SCREEN_WIDTH, VideoRenderer};
 use crate::core::machine::ApogeeMachine;
 
+const MAX_QUEUED_AUDIO_SAMPLES: usize = 2048;
+const THROTTLE_WAIT_MS: u64 = 1;
+
 pub struct App {
     machine: ApogeeMachine,
     video: VideoRenderer,
     audio: AudioSystem,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+    last_time: Instant,
 }
 
 impl App {
@@ -54,6 +58,7 @@ impl App {
             audio,
             window: None,
             pixels: None,
+            last_time: Instant::now(),
         }
     }
 }
@@ -87,6 +92,7 @@ impl ApplicationHandler for App {
         );
         self.pixels = Some(Pixels::new(SCREEN_WIDTH, SCREEN_HEIGHT, surface).unwrap());
         self.window = Some(window);
+        self.last_time = Instant::now();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -118,23 +124,25 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let queued_samples = self.audio.tx.len();
+        let now = Instant::now();
+        let dt = now.duration_since(self.last_time).as_secs_f32().min(0.05);
+        self.last_time = now;
 
-        if queued_samples > 2048 {
+        if self.audio.tx.len() > MAX_QUEUED_AUDIO_SAMPLES {
             event_loop.set_control_flow(ControlFlow::WaitUntil(
-                Instant::now() + Duration::from_millis(2),
+                Instant::now() + Duration::from_millis(THROTTLE_WAIT_MS),
             ));
             return;
         }
 
-        let frame_time = 1.0 / 50.08;
-        let tx = &self.audio.tx;
+        event_loop.set_control_flow(ControlFlow::Poll);
 
-        let video = &mut self.video;
         let mut frame_rendered = false;
+        let tx = &self.audio.tx;
+        let video = &mut self.video;
 
         self.machine.run(
-            frame_time,
+            dt,
             |sample| {
                 let _ = tx.try_send(sample);
             },
@@ -144,10 +152,9 @@ impl ApplicationHandler for App {
             },
         );
 
-        if frame_rendered && let Some(w) = &self.window {
-            w.request_redraw();
-        }
-
-        event_loop.set_control_flow(ControlFlow::Poll);
+        if frame_rendered
+            && let Some(w) = &self.window {
+                w.request_redraw();
+            }
     }
 }

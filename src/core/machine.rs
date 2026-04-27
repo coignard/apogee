@@ -20,9 +20,12 @@ use iz80::Cpu;
 use super::bus::ApogeeBus;
 use super::sound::AudioMixer;
 
-pub const CPU_FREQ: u32 = 1_777_777;
-pub const CPU_DIV: u32 = 9;
-pub const CCLK_DIV: u32 = 12;
+pub const CPU_FREQ_HZ: u32 = 1_777_777;
+pub const CPU_DIVIDER: u32 = 9;
+pub const CHAR_CLOCK_DIVIDER: u32 = 12;
+
+const RESET_VECTOR: u16 = 0xF800;
+const TAPE_SYNC_BYTE: u8 = 0xE6;
 
 pub struct ApogeeMachine {
     cpu: Cpu,
@@ -35,12 +38,12 @@ pub struct ApogeeMachine {
 impl ApogeeMachine {
     pub fn new(system_rom: Vec<u8>) -> Self {
         let mut cpu = Cpu::new_8080();
-        cpu.registers().set_pc(0xF800);
+        cpu.registers().set_pc(RESET_VECTOR);
 
         Self {
             cpu,
             bus: ApogeeBus::new(system_rom),
-            audio_mixer: AudioMixer::new(44100, CPU_FREQ),
+            audio_mixer: AudioMixer::new(44100, CPU_FREQ_HZ),
             cclk_acc: 0,
             pending_cycles: 0,
         }
@@ -50,20 +53,79 @@ impl ApogeeMachine {
         self.audio_mixer.set_sample_rate(sample_rate);
     }
 
-    pub fn load_rom(&mut self, payload: &[u8], is_rka: bool) {
+    pub fn load_rom(
+        &mut self,
+        payload: &[u8],
+        is_rka: bool,
+        autorun: bool,
+    ) -> Result<(), &'static str> {
         if is_rka {
-            let mut start_addr = 0x0000;
-            let mut data = payload;
+            let offset = if payload.first() == Some(&TAPE_SYNC_BYTE) {
+                1
+            } else {
+                0
+            };
 
-            let offset = if payload.first() == Some(&0xE6) { 1 } else { 0 };
-            if payload.len() >= offset + 4 {
-                start_addr = u16::from_be_bytes([payload[offset], payload[offset + 1]]);
-                let end_addr = u16::from_be_bytes([payload[offset + 2], payload[offset + 3]]);
-                let len = (end_addr.wrapping_sub(start_addr)).wrapping_add(1) as usize;
+            if payload.len() < offset + 4 {
+                return Err("file is too short to be a valid RKA");
+            }
 
-                let data_start = offset + 4;
-                let data_end = (data_start + len).min(payload.len());
-                data = &payload[data_start..data_end];
+            let start_addr = u16::from_be_bytes([payload[offset], payload[offset + 1]]);
+            let end_addr = u16::from_be_bytes([payload[offset + 2], payload[offset + 3]]);
+
+            if start_addr > end_addr {
+                return Err("start address is greater than end address");
+            }
+
+            let len = (end_addr as usize - start_addr as usize) + 1;
+            let data_start = offset + 4;
+
+            if payload.len() < data_start + len {
+                return Err("file is shorter than the expected data length");
+            }
+
+            let data = &payload[data_start..data_start + len];
+
+            let (mut cs_hi, mut cs_lo) = (0u8, 0u8);
+            for &b in data {
+                let (new_lo, carry) = cs_lo.overflowing_add(b);
+                cs_lo = new_lo;
+                cs_hi = cs_hi.wrapping_add(b).wrapping_add(u8::from(carry));
+            }
+
+            let tail = &payload[data_start + len..];
+            let sync_idx = tail
+                .iter()
+                .position(|&b| b == TAPE_SYNC_BYTE)
+                .ok_or("checksum block missing")?;
+
+            if tail.len() < sync_idx + 3 {
+                return Err("missing checksum bytes after sync");
+            }
+
+            if cs_hi != tail[sync_idx + 1] || cs_lo != tail[sync_idx + 2] {
+                return Err("checksum mismatch");
+            }
+
+            if autorun {
+                let mut cycles_done = 0;
+                while cycles_done < 2_000_000 {
+                    let halt_cycles = self.bus.vt57.halt_cycles();
+                    let is_halted = halt_cycles > 0;
+
+                    let step = if is_halted {
+                        halt_cycles.min(100)
+                    } else {
+                        self.step_cpu()
+                    };
+
+                    self.advance_system(step, &mut |_| {}, &mut |_| {});
+
+                    if is_halted {
+                        self.bus.vt57.sub_halt_cycles(step);
+                    }
+                    cycles_done += step;
+                }
             }
 
             for (i, &b) in data.iter().enumerate() {
@@ -72,9 +134,15 @@ impl ApogeeMachine {
                     self.bus.ram[write_addr] = b;
                 }
             }
+
+            if autorun {
+                self.cpu.registers().set_pc(start_addr);
+            }
         } else {
             self.bus.romdisk.load(payload);
         }
+
+        Ok(())
     }
 
     pub fn update_key(&mut self, row: usize, col: usize, pressed: bool) {
@@ -88,28 +156,27 @@ impl ApogeeMachine {
     {
         let mut render_requested = false;
 
-        let new_cycles = (elapsed_secs * CPU_FREQ as f32) as u32;
+        let new_cycles = (elapsed_secs * CPU_FREQ_HZ as f32) as u32;
         self.pending_cycles = self.pending_cycles.saturating_add(new_cycles);
 
         while self.pending_cycles > 0 {
             let halt_cycles = self.bus.vt57.halt_cycles();
-            if halt_cycles > 0 {
-                let step = halt_cycles.min(self.pending_cycles);
+            let is_halted = halt_cycles > 0;
 
-                if self.advance_system(step, &mut push_sample, &mut render_frame) {
-                    render_requested = true;
-                }
-
-                self.bus.vt57.sub_halt_cycles(step);
-                self.pending_cycles -= step;
+            let step = if is_halted {
+                halt_cycles.min(self.pending_cycles)
             } else {
-                let step = self.step_cpu();
+                self.step_cpu()
+            };
 
-                if self.advance_system(step, &mut push_sample, &mut render_frame) {
-                    render_requested = true;
-                }
-                self.pending_cycles = self.pending_cycles.saturating_sub(step);
+            if self.advance_system(step, &mut push_sample, &mut render_frame) {
+                render_requested = true;
             }
+
+            if is_halted {
+                self.bus.vt57.sub_halt_cycles(step);
+            }
+            self.pending_cycles = self.pending_cycles.saturating_sub(step);
         }
 
         render_requested
@@ -140,15 +207,15 @@ impl ApogeeMachine {
 
         for _ in 0..cpu_cycles {
             let vi53_mixed = self.bus.vi53.tick();
-            let beeper = (self.bus.sys_vv55.port_c_out & 1) != 0;
+            let beeper = self.bus.sys_vv55.is_beeper_active();
 
             if let Some(sample) = self.audio_mixer.tick(vi53_mixed, beeper) {
                 push_sample(sample);
             }
 
-            self.cclk_acc += CPU_DIV;
-            while self.cclk_acc >= CCLK_DIV {
-                self.cclk_acc -= CCLK_DIV;
+            self.cclk_acc += CPU_DIVIDER;
+            while self.cclk_acc >= CHAR_CLOCK_DIVIDER {
+                self.cclk_acc -= CHAR_CLOCK_DIVIDER;
 
                 if self.bus.vg75.tick(&mut self.bus.vt57, &self.bus.ram) {
                     render_frame(&self.bus.vg75);

@@ -15,10 +15,38 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[derive(Clone, Copy, PartialEq, Default)]
+pub enum BytePhase {
+    #[default]
+    Lsb,
+    Msb,
+}
+
+impl BytePhase {
+    pub fn toggle(&mut self) {
+        *self = match self {
+            Self::Lsb => Self::Msb,
+            Self::Msb => Self::Lsb,
+        };
+    }
+}
+
+const PORT_MASK: u16 = 0x0F;
+const PORT_CH2_ADDR: u16 = 4;
+const PORT_CH2_COUNT: u16 = 5;
+const PORT_CH3_ADDR: u16 = 6;
+const PORT_CH3_COUNT: u16 = 7;
+const PORT_MODE: u16 = 8;
+
+const MODE_ENABLE_CH2: u8 = 0x04;
+const MODE_AUTO_LOAD: u8 = 0x80;
+const COUNT_MASK: u16 = 0x3FFF;
+const COUNT_MODE_PRESERVE_MASK: u16 = 0xC000;
+
 pub struct Kr580Vt57 {
     enabled: bool,
     mode: u8,
-    dma_flip_flop: bool,
+    byte_phase: BytePhase,
     ch2_addr: u16,
     ch2_count: u16,
     ch3_addr: u16,
@@ -31,7 +59,7 @@ impl Kr580Vt57 {
         Self {
             enabled: false,
             mode: 0,
-            dma_flip_flop: false,
+            byte_phase: BytePhase::default(),
             ch2_addr: 0,
             ch2_count: 0,
             ch3_addr: 0,
@@ -54,16 +82,16 @@ impl Kr580Vt57 {
     pub fn step_ch2(&mut self) {
         self.ch2_addr = self.ch2_addr.wrapping_add(1);
 
-        let count = self.ch2_count & 0x3FFF;
+        let count = self.ch2_count & COUNT_MASK;
         if count == 0 {
-            if (self.mode & 0x80) != 0 {
+            if (self.mode & MODE_AUTO_LOAD) != 0 {
                 self.ch2_addr = self.ch3_addr;
                 self.ch2_count = self.ch3_count;
             } else {
-                self.ch2_count = (self.ch2_count & 0xC000) | 0x3FFF;
+                self.ch2_count = (self.ch2_count & COUNT_MODE_PRESERVE_MASK) | COUNT_MASK;
             }
         } else {
-            self.ch2_count = (self.ch2_count & 0xC000) | (count - 1);
+            self.ch2_count = (self.ch2_count & COUNT_MODE_PRESERVE_MASK) | (count - 1);
         }
     }
 
@@ -83,53 +111,59 @@ impl Kr580Vt57 {
     }
 
     pub fn write(&mut self, port: u16, val: u8) {
-        match port & 0x0F {
-            4 => {
-                if self.dma_flip_flop {
+        match port & PORT_MASK {
+            PORT_CH2_ADDR => {
+                if self.byte_phase == BytePhase::Msb {
                     self.ch2_addr = (self.ch2_addr & 0x00FF) | ((val as u16) << 8);
                     self.ch3_addr = (self.ch3_addr & 0x00FF) | ((val as u16) << 8);
                 } else {
                     self.ch2_addr = (self.ch2_addr & 0xFF00) | (val as u16);
                     self.ch3_addr = (self.ch3_addr & 0xFF00) | (val as u16);
                 }
-                self.dma_flip_flop = !self.dma_flip_flop;
+                self.byte_phase.toggle();
             }
-            5 => {
-                if self.dma_flip_flop {
+            PORT_CH2_COUNT => {
+                if self.byte_phase == BytePhase::Msb {
                     self.ch2_count = (self.ch2_count & 0x00FF) | ((val as u16) << 8);
                     self.ch3_count = (self.ch3_count & 0x00FF) | ((val as u16) << 8);
                 } else {
                     self.ch2_count = (self.ch2_count & 0xFF00) | (val as u16);
                     self.ch3_count = (self.ch3_count & 0xFF00) | (val as u16);
                 }
-                self.dma_flip_flop = !self.dma_flip_flop;
+                self.byte_phase.toggle();
             }
-            6 => {
-                if self.dma_flip_flop {
+            PORT_CH3_ADDR => {
+                if self.byte_phase == BytePhase::Msb {
                     self.ch3_addr = (self.ch3_addr & 0x00FF) | ((val as u16) << 8);
                 } else {
                     self.ch3_addr = (self.ch3_addr & 0xFF00) | (val as u16);
                 }
-                self.dma_flip_flop = !self.dma_flip_flop;
+                self.byte_phase.toggle();
             }
-            7 => {
-                if self.dma_flip_flop {
+            PORT_CH3_COUNT => {
+                if self.byte_phase == BytePhase::Msb {
                     self.ch3_count = (self.ch3_count & 0x00FF) | ((val as u16) << 8);
                 } else {
                     self.ch3_count = (self.ch3_count & 0xFF00) | (val as u16);
                 }
-                self.dma_flip_flop = !self.dma_flip_flop;
+                self.byte_phase.toggle();
             }
-            8 => {
-                self.dma_flip_flop = false;
+            PORT_MODE => {
+                self.byte_phase = BytePhase::Lsb;
                 self.mode = val;
-                self.enabled = (val & 0x04) != 0;
+                self.enabled = (val & MODE_ENABLE_CH2) != 0;
             }
-            _ => {
-                if (port & 0x0F) < 8 {
-                    self.dma_flip_flop = !self.dma_flip_flop;
+            port_idx => {
+                if port_idx < PORT_MODE {
+                    self.byte_phase.toggle();
                 }
             }
         }
+    }
+}
+
+impl Default for Kr580Vt57 {
+    fn default() -> Self {
+        Self::new()
     }
 }
