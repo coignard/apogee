@@ -228,9 +228,9 @@ impl ApogeeMachine {
 
         for _ in 0..cpu_cycles {
             let vi53_mixed = self.bus.vi53.tick();
-            let beeper = self.bus.sys_vv55.is_beeper_active();
+            let tape_out = self.bus.sys_vv55.is_tape_out_active();
 
-            if let Some(sample) = self.audio_mixer.tick(vi53_mixed, beeper) {
+            if let Some(sample) = self.audio_mixer.tick(vi53_mixed, tape_out) {
                 push_sample(sample);
             }
 

@@ -40,9 +40,9 @@ impl AudioMixer {
         self.sample_rate = sample_rate;
     }
 
-    pub fn tick(&mut self, vi53_mixed: i32, beeper_state: bool) -> Option<f32> {
+    pub fn tick(&mut self, vi53_mixed: i32, tape_out_state: bool) -> Option<f32> {
         let mut mixed = vi53_mixed;
-        mixed += if beeper_state { 1 } else { -1 };
+        mixed += if tape_out_state { 1 } else { -1 };
 
         self.audio_sum += mixed;
         self.audio_samples += 1;

@@ -31,7 +31,7 @@ const CWR_PORT_C_LO_IN: u8 = 0x01;
 const BSR_BIT_MASK: u8 = 0x07;
 const BSR_VAL_MASK: u8 = 0x01;
 
-const BEEPER_BIT_MASK: u8 = 0x01;
+const TAPE_OUT_BIT_MASK: u8 = 0x01;
 
 #[derive(Clone, Copy)]
 pub struct Kr580Vv55a {
@@ -58,8 +58,8 @@ impl Kr580Vv55a {
     }
 
     #[inline]
-    pub fn is_beeper_active(&self) -> bool {
-        (self.port_c_out & BEEPER_BIT_MASK) != 0
+    pub fn is_tape_out_active(&self) -> bool {
+        (self.port_c_out & TAPE_OUT_BIT_MASK) != 0
     }
 
     pub fn read(&self, port: u16, in_a: u8, in_b: u8, in_c: u8) -> u8 {
