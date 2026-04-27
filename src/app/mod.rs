@@ -152,9 +152,8 @@ impl ApplicationHandler for App {
             },
         );
 
-        if frame_rendered
-            && let Some(w) = &self.window {
-                w.request_redraw();
-            }
+        if frame_rendered && let Some(w) = &self.window {
+            w.request_redraw();
+        }
     }
 }
