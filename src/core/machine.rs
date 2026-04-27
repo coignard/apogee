@@ -27,6 +27,12 @@ pub const CHAR_CLOCK_DIVIDER: u32 = 12;
 const RESET_VECTOR: u16 = 0xF800;
 const TAPE_SYNC_BYTE: u8 = 0xE6;
 
+const DEFAULT_SAMPLE_RATE: u32 = 44_100;
+const AUTORUN_DELAY_CYCLES: u32 = 2_000_000;
+const MAX_HALT_STEP_CYCLES: u32 = 100;
+const RKA_HEADER_SIZE: usize = 4;
+const RKA_TAIL_SIZE: usize = 3;
+
 pub struct ApogeeMachine {
     cpu: Cpu,
     bus: ApogeeBus,
@@ -43,7 +49,7 @@ impl ApogeeMachine {
         Self {
             cpu,
             bus: ApogeeBus::new(system_rom),
-            audio_mixer: AudioMixer::new(44100, CPU_FREQ_HZ),
+            audio_mixer: AudioMixer::new(DEFAULT_SAMPLE_RATE, CPU_FREQ_HZ),
             cclk_acc: 0,
             pending_cycles: 0,
         }
@@ -66,7 +72,7 @@ impl ApogeeMachine {
                 0
             };
 
-            if payload.len() < offset + 4 {
+            if payload.len() < offset + RKA_HEADER_SIZE {
                 return Err("file is too short to be a valid RKA");
             }
 
@@ -78,7 +84,7 @@ impl ApogeeMachine {
             }
 
             let len = (end_addr as usize - start_addr as usize) + 1;
-            let data_start = offset + 4;
+            let data_start = offset + RKA_HEADER_SIZE;
 
             if payload.len() < data_start + len {
                 return Err("file is shorter than the expected data length");
@@ -99,7 +105,7 @@ impl ApogeeMachine {
                 .position(|&b| b == TAPE_SYNC_BYTE)
                 .ok_or("checksum block missing")?;
 
-            if tail.len() < sync_idx + 3 {
+            if tail.len() < sync_idx + RKA_TAIL_SIZE {
                 return Err("missing checksum bytes after sync");
             }
 
@@ -109,12 +115,12 @@ impl ApogeeMachine {
 
             if autorun {
                 let mut cycles_done = 0;
-                while cycles_done < 2_000_000 {
+                while cycles_done < AUTORUN_DELAY_CYCLES {
                     let halt_cycles = self.bus.vt57.halt_cycles();
                     let is_halted = halt_cycles > 0;
 
                     let step = if is_halted {
-                        halt_cycles.min(100)
+                        halt_cycles.min(MAX_HALT_STEP_CYCLES)
                     } else {
                         self.step_cpu()
                     };
