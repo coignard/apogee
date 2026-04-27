@@ -13,6 +13,19 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  integrity:
+    name: Integrity
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - name: Verify assets integrity
+      run: |
+        echo "4b5c8507ff16f7712e28e0f635fd783f2a8ba7c912f82d86223a90f3656a2395  dist/roms/apogee.rom" > SHA256SUMS
+        echo "a71d0166f73952675db15088545276cf39805cab34f9c94f28de50931f8ed99f  dist/fonts/sga.bin" >> SHA256SUMS
+        sha256sum --check SHA256SUMS
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
