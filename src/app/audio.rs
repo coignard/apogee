@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::bounded;
 
@@ -24,19 +25,25 @@ const DC_BLOCKER_ALPHA: f32 = 0.999;
 pub struct AudioSystem {
     pub sample_rate: u32,
     pub tx: crossbeam_channel::Sender<f32>,
+    pub err_rx: crossbeam_channel::Receiver<anyhow::Error>,
     _stream: cpal::Stream,
 }
 
 impl AudioSystem {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         let host = cpal::default_host();
-        let device = host.default_output_device().expect("No audio device");
-        let config = device.default_output_config().expect("No audio config");
+        let device = host
+            .default_output_device()
+            .context("No default audio output device available")?;
+        let config = device
+            .default_output_config()
+            .context("Failed to get default audio output config")?;
 
         let sample_rate = config.sample_rate();
         let channels = config.channels() as usize;
 
         let (tx, rx) = bounded::<f32>(AUDIO_QUEUE_CAPACITY);
+        let (err_tx, err_rx) = bounded::<anyhow::Error>(1);
 
         let mut dc_blocker = 0.0;
         let mut prev_mixed = 0.0;
@@ -59,17 +66,20 @@ impl AudioSystem {
                         }
                     }
                 },
-                |err| eprintln!("Audio stream error: {}", err),
+                move |err| {
+                    let _ = err_tx.try_send(anyhow::Error::new(err).context("Audio stream error"));
+                },
                 None,
             )
-            .expect("Failed to build audio stream");
+            .context("Failed to build audio stream")?;
 
-        stream.play().unwrap();
+        stream.play().context("Failed to play audio stream")?;
 
-        Self {
+        Ok(Self {
             sample_rate,
             tx,
+            err_rx,
             _stream: stream,
-        }
+        })
     }
 }

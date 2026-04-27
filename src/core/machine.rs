@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::{Result, bail};
 use iz80::Cpu;
 
 use super::bus::ApogeeBus;
@@ -59,12 +60,7 @@ impl ApogeeMachine {
         self.audio_mixer.set_sample_rate(sample_rate);
     }
 
-    pub fn load_rom(
-        &mut self,
-        payload: &[u8],
-        is_rka: bool,
-        autorun: bool,
-    ) -> Result<(), &'static str> {
+    pub fn load_rom(&mut self, payload: &[u8], is_rka: bool, autorun: bool) -> Result<()> {
         if is_rka {
             let offset = if payload.first() == Some(&TAPE_SYNC_BYTE) {
                 1
@@ -73,21 +69,21 @@ impl ApogeeMachine {
             };
 
             if payload.len() < offset + RKA_HEADER_SIZE {
-                return Err("file is too short to be a valid RKA");
+                bail!("file is too short to be a valid RKA");
             }
 
             let start_addr = u16::from_be_bytes([payload[offset], payload[offset + 1]]);
             let end_addr = u16::from_be_bytes([payload[offset + 2], payload[offset + 3]]);
 
             if start_addr > end_addr {
-                return Err("start address is greater than end address");
+                bail!("start address is greater than end address");
             }
 
             let len = (end_addr as usize - start_addr as usize) + 1;
             let data_start = offset + RKA_HEADER_SIZE;
 
             if payload.len() < data_start + len {
-                return Err("file is shorter than the expected data length");
+                bail!("file is shorter than the expected data length");
             }
 
             let data = &payload[data_start..data_start + len];
@@ -100,17 +96,17 @@ impl ApogeeMachine {
             }
 
             let tail = &payload[data_start + len..];
-            let sync_idx = tail
-                .iter()
-                .position(|&b| b == TAPE_SYNC_BYTE)
-                .ok_or("checksum block missing")?;
+
+            let Some(sync_idx) = tail.iter().position(|&b| b == TAPE_SYNC_BYTE) else {
+                bail!("checksum block missing");
+            };
 
             if tail.len() < sync_idx + RKA_TAIL_SIZE {
-                return Err("missing checksum bytes after sync");
+                bail!("missing checksum bytes after sync");
             }
 
             if cs_hi != tail[sync_idx + 1] || cs_lo != tail[sync_idx + 2] {
-                return Err("checksum mismatch");
+                bail!("checksum mismatch");
             }
 
             if autorun {

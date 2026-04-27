@@ -20,6 +20,7 @@ mod core;
 
 use std::fs;
 
+use anyhow::{Context, Result, ensure};
 use clap::Parser;
 use sha2::{Digest, Sha256};
 use winit::event_loop::EventLoop;
@@ -81,31 +82,35 @@ struct Args {
     crt: bool,
 }
 
-fn check_integrity() {
-    let verify = |name: &str, data: &[u8], expected: &str| {
+fn check_integrity() -> Result<()> {
+    let verify = |name: &str, data: &[u8], expected: &str| -> Result<()> {
         let hash = Sha256::digest(data);
         let actual = hex::encode(hash);
-
-        if actual != expected {
-            eprintln!("error: integrity check failed for asset '{name}'");
-            std::process::exit(1);
-        }
+        ensure!(
+            actual == expected,
+            "integrity check failed for asset '{}'",
+            name
+        );
+        Ok(())
     };
 
     verify(
         "apogee.rom",
         SYSTEM_ROM,
         "4b5c8507ff16f7712e28e0f635fd783f2a8ba7c912f82d86223a90f3656a2395",
-    );
+    )?;
+
     verify(
         "sga.bin",
         FONT_ROM,
         "a71d0166f73952675db15088545276cf39805cab34f9c94f28de50931f8ed99f",
-    );
+    )?;
+
+    Ok(())
 }
 
-fn main() {
-    check_integrity();
+fn main() -> Result<()> {
+    check_integrity()?;
 
     let args = Args::parse();
 
@@ -121,21 +126,22 @@ fn main() {
     let video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, args.crt);
 
     if let Some(path) = &args.file {
-        match fs::read(path) {
-            Ok(data) => {
-                if let Err(err) = machine.load_rom(&data, true, args.autorun) {
-                    eprintln!("error: invalid RKA file '{}': {}", path, err);
-                    std::process::exit(1);
-                }
-            }
-            Err(err) => {
-                eprintln!("error: could not read '{}': {}", path, err);
-                std::process::exit(1);
-            }
-        }
+        let data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
+        machine
+            .load_rom(&data, true, args.autorun)
+            .with_context(|| format!("invalid RKA file '{}'", path))?;
     }
 
-    let mut app = App::new(machine, video);
-    let event_loop = EventLoop::new().unwrap();
-    let _ = event_loop.run_app(&mut app);
+    let mut app = App::new(machine, video)?;
+
+    let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
+    event_loop
+        .run_app(&mut app)
+        .context("Application execution failed")?;
+
+    if let Some(err) = app.fatal_error {
+        return Err(err);
+    }
+
+    Ok(())
 }

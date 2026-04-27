@@ -22,6 +22,7 @@ pub mod video;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use anyhow::Result;
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -45,21 +46,23 @@ pub struct App {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
     last_time: Instant,
+    pub fatal_error: Option<anyhow::Error>,
 }
 
 impl App {
-    pub fn new(mut machine: ApogeeMachine, video: VideoRenderer) -> Self {
-        let audio = AudioSystem::new();
+    pub fn new(mut machine: ApogeeMachine, video: VideoRenderer) -> Result<Self> {
+        let audio = AudioSystem::new()?;
         machine.set_sample_rate(audio.sample_rate);
 
-        Self {
+        Ok(Self {
             machine,
             video,
             audio,
             window: None,
             pixels: None,
             last_time: Instant::now(),
-        }
+            fatal_error: None,
+        })
     }
 }
 
@@ -75,6 +78,7 @@ impl ApplicationHandler for App {
         };
 
         let size = LogicalSize::new((SCREEN_WIDTH * 2) as f64, (SCREEN_HEIGHT * 2) as f64);
+
         let window = Arc::new(
             event_loop
                 .create_window(
@@ -90,7 +94,11 @@ impl ApplicationHandler for App {
             window.inner_size().height,
             window.clone(),
         );
-        self.pixels = Some(Pixels::new(SCREEN_WIDTH, SCREEN_HEIGHT, surface).unwrap());
+
+        self.pixels = Some(
+            Pixels::new(SCREEN_WIDTH, SCREEN_HEIGHT, surface)
+                .expect("Failed to create pixels surface"),
+        );
         self.window = Some(window);
         self.last_time = Instant::now();
     }
@@ -114,7 +122,8 @@ impl ApplicationHandler for App {
                         .copy_from_slice(self.video.frame_buffer());
 
                     if let Err(err) = pixels.render() {
-                        eprintln!("pixels.render failed: {err}");
+                        self.fatal_error =
+                            Some(anyhow::Error::new(err).context("Pixels render failed"));
                         event_loop.exit();
                     }
                 }
@@ -124,6 +133,12 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if let Ok(err) = self.audio.err_rx.try_recv() {
+            self.fatal_error = Some(err);
+            event_loop.exit();
+            return;
+        }
+
         let now = Instant::now();
         let dt = now.duration_since(self.last_time).as_secs_f32().min(0.05);
         self.last_time = now;
