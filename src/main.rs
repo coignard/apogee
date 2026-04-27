@@ -45,6 +45,10 @@ struct Args {
     #[arg(value_name = "file", hide = true)]
     file: Option<String>,
 
+    /// Run the loaded program immediately after startup
+    #[arg(short = 'a', long = "autorun", help_heading = "General options")]
+    autorun: bool,
+
     /// Print this message and exit
     #[arg(
         short = 'h',
@@ -93,7 +97,10 @@ fn main() {
     if let Some(path) = &args.file {
         match fs::read(path) {
             Ok(data) => {
-                machine.load_rom(&data, true);
+                if let Err(err) = machine.load_rom(&data, true, args.autorun) {
+                    eprintln!("error: invalid RKA file '{}': {}", path, err);
+                    std::process::exit(1);
+                }
             }
             Err(err) => {
                 eprintln!("error: could not read '{}': {}", path, err);
