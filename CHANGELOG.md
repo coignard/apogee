@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.2
+
+### Added
+- `--force` / `-f` CLI flag: skips RKA validation and loads the file anyway, tolerating inverted address ranges, truncated payloads, and missing checksums
+- SHA-256 integrity check for bundled assets (`apogee.rom`, `sga.bin`) on startup
+- `err_rx` channel on `AudioSystem` for propagating runtime audio stream errors to the main loop
+- `fatal_error` field on `App` for structured fatal error reporting
+
+### Changed
+- `main()` now returns `Result<()>`; all `eprintln!` + `process::exit` replaced with `anyhow` error propagation
+- `App::new()` and `AudioSystem::new()` now return `Result<Self>` instead of being infallible
+- `load_rom` signature extended with `force: bool` parameter and migrated from `Result<(), &'static str>` to `anyhow::Result<()>`
+- Audio stream error callback now sends errors over a channel instead of printing to stderr
+- `is_beeper_active()` renamed to `is_tape_out_active()` and constant `BEEPER_BIT_MASK` renamed to `TAPE_OUT_BIT_MASK` to reflect actual hardware function
+- `AudioMixer::tick()` parameter renamed from `beeper_state` to `tape_out_state`
+
 ## 0.1.1
 
 ### Added
