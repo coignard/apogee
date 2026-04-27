@@ -21,6 +21,7 @@ mod core;
 use std::fs;
 
 use clap::Parser;
+use sha2::{Digest, Sha256};
 use winit::event_loop::EventLoop;
 
 use crate::app::App;
@@ -80,7 +81,32 @@ struct Args {
     crt: bool,
 }
 
+fn check_integrity() {
+    let verify = |name: &str, data: &[u8], expected: &str| {
+        let hash = Sha256::digest(data);
+        let actual = hex::encode(hash);
+
+        if actual != expected {
+            eprintln!("error: integrity check failed for asset '{name}'");
+            std::process::exit(1);
+        }
+    };
+
+    verify(
+        "apogee.rom",
+        SYSTEM_ROM,
+        "4b5c8507ff16f7712e28e0f635fd783f2a8ba7c912f82d86223a90f3656a2395",
+    );
+    verify(
+        "sga.bin",
+        FONT_ROM,
+        "a71d0166f73952675db15088545276cf39805cab34f9c94f28de50931f8ed99f",
+    );
+}
+
 fn main() {
+    check_integrity();
+
     let args = Args::parse();
 
     let color_mode = if args.bw {
