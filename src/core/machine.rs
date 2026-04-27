@@ -60,7 +60,7 @@ impl ApogeeMachine {
         self.audio_mixer.set_sample_rate(sample_rate);
     }
 
-    pub fn load_rom(&mut self, payload: &[u8], is_rka: bool, autorun: bool) -> Result<()> {
+    pub fn load_rom(&mut self, payload: &[u8], is_rka: bool, autorun: bool, force: bool) -> Result<()> {
         if is_rka {
             let offset = if payload.first() == Some(&TAPE_SYNC_BYTE) {
                 1
@@ -75,38 +75,51 @@ impl ApogeeMachine {
             let start_addr = u16::from_be_bytes([payload[offset], payload[offset + 1]]);
             let end_addr = u16::from_be_bytes([payload[offset + 2], payload[offset + 3]]);
 
-            if start_addr > end_addr {
+            if start_addr > end_addr && !force {
                 bail!("start address is greater than end address");
             }
 
-            let len = (end_addr as usize - start_addr as usize) + 1;
             let data_start = offset + RKA_HEADER_SIZE;
 
-            if payload.len() < data_start + len {
-                bail!("file is shorter than the expected data length");
-            }
+            let intended_len = if start_addr <= end_addr {
+                (end_addr as usize - start_addr as usize) + 1
+            } else {
+                payload.len() - data_start
+            };
+
+            let len = if payload.len() < data_start + intended_len {
+                if force {
+                    payload.len() - data_start
+                } else {
+                    bail!("file is shorter than the expected data length");
+                }
+            } else {
+                intended_len
+            };
 
             let data = &payload[data_start..data_start + len];
 
-            let (mut cs_hi, mut cs_lo) = (0u8, 0u8);
-            for &b in data {
-                let (new_lo, carry) = cs_lo.overflowing_add(b);
-                cs_lo = new_lo;
-                cs_hi = cs_hi.wrapping_add(b).wrapping_add(u8::from(carry));
-            }
+            if !force {
+                let (mut cs_hi, mut cs_lo) = (0u8, 0u8);
+                for &b in data {
+                    let (new_lo, carry) = cs_lo.overflowing_add(b);
+                    cs_lo = new_lo;
+                    cs_hi = cs_hi.wrapping_add(b).wrapping_add(u8::from(carry));
+                }
 
-            let tail = &payload[data_start + len..];
+                let tail = &payload[data_start + len..];
 
-            let Some(sync_idx) = tail.iter().position(|&b| b == TAPE_SYNC_BYTE) else {
-                bail!("checksum block missing");
-            };
+                let Some(sync_idx) = tail.iter().position(|&b| b == TAPE_SYNC_BYTE) else {
+                    bail!("checksum block missing");
+                };
 
-            if tail.len() < sync_idx + RKA_TAIL_SIZE {
-                bail!("missing checksum bytes after sync");
-            }
+                if tail.len() < sync_idx + RKA_TAIL_SIZE {
+                    bail!("missing checksum bytes after sync");
+                }
 
-            if cs_hi != tail[sync_idx + 1] || cs_lo != tail[sync_idx + 2] {
-                bail!("checksum mismatch");
+                if cs_hi != tail[sync_idx + 1] || cs_lo != tail[sync_idx + 2] {
+                    bail!("checksum mismatch");
+                }
             }
 
             if autorun {

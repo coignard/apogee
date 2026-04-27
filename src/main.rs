@@ -51,6 +51,10 @@ struct Args {
     #[arg(short = 'a', long = "autorun", help_heading = "General options")]
     autorun: bool,
 
+    /// Skip validation and load anyway
+    #[arg(short = 'f', long = "force", help_heading = "General options")]
+    force: bool,
+
     /// Print this message and exit
     #[arg(
         short = 'h',
@@ -128,7 +132,7 @@ fn main() -> Result<()> {
     if let Some(path) = &args.file {
         let data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
         machine
-            .load_rom(&data, true, args.autorun)
+            .load_rom(&data, true, args.autorun, args.force)
             .with_context(|| format!("invalid RKA file '{}'", path))?;
     }
 
