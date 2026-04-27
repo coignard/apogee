@@ -1,6 +1,6 @@
 [package]
 name = "apogee"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     "René Coignard <contact@renecoignard.com>"
 ]
@@ -10,9 +10,9 @@ license = "GPL-3.0-or-later"
 description = "Cycle-accurate Apogee BK-01 emulator"
 homepage = "https://coignard.org/apogee"
 repository = "https://github.com/coignard/apogee"
-readme = "README.md"
-keywords = ["midi", "sequencer", "livecoding", "tui", "orca"]
-categories = ["command-line-utilities", "multimedia::audio"]
+readme = "README"
+keywords = ["emulator", "apogee", "kr580", "8080"]
+categories = ["emulators"]
 exclude = [".github/*"]
 
 [dependencies]
