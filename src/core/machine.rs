@@ -60,7 +60,13 @@ impl ApogeeMachine {
         self.audio_mixer.set_sample_rate(sample_rate);
     }
 
-    pub fn load_rom(&mut self, payload: &[u8], is_rka: bool, autorun: bool, force: bool) -> Result<()> {
+    pub fn load_rom(
+        &mut self,
+        payload: &[u8],
+        is_rka: bool,
+        autorun: bool,
+        force: bool,
+    ) -> Result<()> {
         if is_rka {
             let offset = if payload.first() == Some(&TAPE_SYNC_BYTE) {
                 1
