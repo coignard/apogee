@@ -1,7 +1,7 @@
 Apogee
 ======
 
-Cycle-accurate Apogee BK-01 emulator using the iz80 library.
+Apogee BK-01 emulator using the iz80 library.
 
 This source code is licensed under the GNU GPLv3+.  See the LICENSE file
 for more details.
