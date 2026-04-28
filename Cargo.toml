@@ -1,13 +1,13 @@
 [package]
 name = "apogee"
-version = "0.1.2"
+version = "0.1.3"
 authors = [
     "René Coignard <contact@renecoignard.com>"
 ]
 edition = "2024"
 rust-version = "1.95"
 license = "GPL-3.0-or-later"
-description = "Cycle-accurate Apogee BK-01 emulator using the iz80 library"
+description = "Apogee BK-01 emulator using the iz80 library"
 homepage = "https://coignard.org/apogee"
 repository = "https://github.com/coignard/apogee"
 readme = "README"
