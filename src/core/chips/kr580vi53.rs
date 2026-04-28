@@ -51,13 +51,14 @@ struct TimerChannel {
     mode: u8,
     rw_mode: PitRwMode,
     reload: u16,
+    reload_latch: u16,
+    reload_pending: bool,
     counter: u32,
     latch: u16,
     phase: PitPhase,
     out: bool,
     latched: bool,
     counting: bool,
-    reload_pending: bool,
 }
 
 impl TimerChannel {
@@ -83,7 +84,11 @@ impl TimerChannel {
             self.reload_pending = false;
             if self.mode == 3 || self.mode == 7 {
                 self.out = true;
-                self.counter = eff_val.div_ceil(2);
+                self.counter = match eff_val {
+                    1 => 32769,
+                    3 => 2,
+                    _ => eff_val.div_ceil(2),
+                };
             } else if self.mode == 0 {
                 self.out = false;
                 self.counter = eff_val;
@@ -98,9 +103,17 @@ impl TimerChannel {
             if self.counter == 0 {
                 self.out = !self.out;
                 self.counter = if self.out {
-                    eff_val.div_ceil(2)
+                    match eff_val {
+                        1 => 32769,
+                        3 => 2,
+                        _ => eff_val.div_ceil(2),
+                    }
                 } else {
-                    eff_val / 2
+                    match eff_val {
+                        1 => 32768,
+                        3 => 32769,
+                        _ => eff_val / 2,
+                    }
                 };
             }
             self.counter = self.counter.saturating_sub(1);
@@ -182,22 +195,25 @@ impl Kr580Vi53 {
             let ch = &mut self.channels[ch_idx];
             match ch.rw_mode {
                 PitRwMode::LsbOnly => {
-                    ch.reload = (ch.reload & 0xFF00) | (val as u16);
+                    ch.reload_latch = (ch.reload_latch & 0xFF00) | (val as u16);
+                    ch.reload = ch.reload_latch;
                     ch.trigger_load();
                 }
                 PitRwMode::MsbOnly => {
-                    ch.reload = (ch.reload & 0x00FF) | ((val as u16) << 8);
+                    ch.reload_latch = (ch.reload_latch & 0x00FF) | ((val as u16) << 8);
+                    ch.reload = ch.reload_latch;
                     ch.trigger_load();
                 }
                 PitRwMode::LsbThenMsb => {
                     if ch.phase == PitPhase::Lsb {
-                        ch.reload = (ch.reload & 0xFF00) | (val as u16);
+                        ch.reload_latch = (ch.reload_latch & 0xFF00) | (val as u16);
                         ch.phase = PitPhase::Msb;
                         if ch.mode == 0 {
                             ch.counting = false;
                         }
                     } else {
-                        ch.reload = (ch.reload & 0x00FF) | ((val as u16) << 8);
+                        ch.reload_latch = (ch.reload_latch & 0x00FF) | ((val as u16) << 8);
+                        ch.reload = ch.reload_latch;
                         ch.phase = PitPhase::Lsb;
                         ch.trigger_load();
                     }

@@ -139,16 +139,16 @@ impl ApplicationHandler for App {
             return;
         }
 
-        let now = Instant::now();
-        let dt = now.duration_since(self.last_time).as_secs_f32().min(0.05);
-        self.last_time = now;
-
         if self.audio.tx.len() > MAX_QUEUED_AUDIO_SAMPLES {
             event_loop.set_control_flow(ControlFlow::WaitUntil(
                 Instant::now() + Duration::from_millis(THROTTLE_WAIT_MS),
             ));
             return;
         }
+
+        let now = Instant::now();
+        let dt = now.duration_since(self.last_time).as_secs_f32().min(0.05);
+        self.last_time = now;
 
         event_loop.set_control_flow(ControlFlow::Poll);
 

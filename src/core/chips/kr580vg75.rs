@@ -225,8 +225,8 @@ pub struct Kr580Vg75 {
 
     burst_count: u8,
     burst_space: u8,
-    dma_bytes_left: u8,
-    dma_space_counter: u8,
+    cur_burst_pos: u8,
+    dma_timer: u32,
 
     cursor_x: u8,
     cursor_y: u8,
@@ -236,6 +236,8 @@ pub struct Kr580Vg75 {
     fifo_write_pos: usize,
     next_to_fifo: bool,
     dma_stopped_for_row: bool,
+    dma_paused: bool,
+    need_extra_byte: bool,
     is_end_of_screen: bool,
     was_dma_underrun: bool,
 
@@ -291,8 +293,8 @@ impl Kr580Vg75 {
 
             burst_count: 1,
             burst_space: 0,
-            dma_bytes_left: 0,
-            dma_space_counter: 0,
+            cur_burst_pos: 0,
+            dma_timer: 0,
 
             cursor_x: 0,
             cursor_y: 0,
@@ -302,6 +304,8 @@ impl Kr580Vg75 {
             fifo_write_pos: 0,
             next_to_fifo: bool::default(),
             dma_stopped_for_row: false,
+            dma_paused: true,
+            need_extra_byte: false,
             is_end_of_screen: false,
             was_dma_underrun: false,
 
@@ -494,8 +498,10 @@ impl Kr580Vg75 {
                     self.fifo_write_pos = 0;
                     self.next_to_fifo = false;
                     self.dma_stopped_for_row = false;
-                    self.dma_bytes_left = 0;
-                    self.dma_space_counter = 0;
+                    self.dma_paused = true;
+                    self.need_extra_byte = false;
+                    self.dma_timer = 0;
+                    self.cur_burst_pos = 0;
                     self.attr_underline = false;
                     self.attr_reverse = false;
                     self.attr_blink = false;
@@ -555,27 +561,94 @@ impl Kr580Vg75 {
         }
     }
 
-    pub fn tick(&mut self, vt57: &mut Kr580Vt57, ram: &[u8; 0x10000]) -> bool {
-        if !self.raster_running {
-            return false;
+    pub fn tick(&mut self, vt57: &mut Kr580Vt57, ram: &[u8; 0x10000]) {
+        if !self.raster_running
+            || !self.is_display_enabled()
+            || self.dma_paused
+            || self.is_end_of_screen
+            || self.was_dma_underrun
+        {
+            return;
         }
 
-        if self.is_display_enabled()
-            && self.crt_cur_row < self.n_rows as u32
-            && self.dma_bytes_left > 0
-            && vt57.halt_cycles() == 0
-        {
-            if self.dma_space_counter > 0 {
-                self.dma_space_counter -= 1;
-            } else {
-                let fetch_count = self.dma_bytes_left.min(self.burst_count);
-                self.dma_bytes_left -= fetch_count;
+        if self.dma_timer > 0 {
+            self.dma_timer -= 1;
+            return;
+        }
 
-                let penalty = 8 + (fetch_count as u32 - 1) * 4;
-                vt57.add_halt_cycles(penalty);
+        if !vt57.is_enabled() {
+            return;
+        }
 
-                self.dma_space_counter = self.burst_space;
+        let c = ram[vt57.ch2_addr() as usize];
+        vt57.step_ch2();
+        vt57.add_halt_cycles(4);
+
+        let mut is_paused = false;
+
+        if self.need_extra_byte {
+            self.need_extra_byte = false;
+            is_paused = true;
+        } else if self.next_to_fifo {
+            self.fifo[self.fifo_write_pos] = c & 0x7F;
+            self.fifo_write_pos = (self.fifo_write_pos + 1) % MAX_FIFO_LEN;
+            if self.fifo_write_pos == 0 {
+                self.status |= STATUS_FIFO_OVERRUN;
             }
+            self.next_to_fifo = false;
+
+            if self.row_buffer.len() == self.n_chars as usize {
+                is_paused = true;
+            }
+        } else {
+            if self.row_buffer.len() < self.n_chars as usize {
+                self.row_buffer.push(c);
+            } else {
+                is_paused = true;
+            }
+
+            if !is_paused {
+                if (c & SPECIAL_CODE_MASK) == SPECIAL_CODE_VAL {
+                    if (c & SPECIAL_CODE_EOF) != 0 {
+                        self.is_end_of_screen = true;
+                    }
+                    self.dma_stopped_for_row = true;
+
+                    if self.row_buffer.len() == self.n_chars as usize
+                        || self.cur_burst_pos == self.burst_count - 1
+                    {
+                        is_paused = true;
+                    } else {
+                        self.need_extra_byte = true;
+                    }
+                } else if self.transparent_attr
+                    && (c & ATTR_TRANSPARENT_MASK) == ATTR_TRANSPARENT_VAL
+                {
+                    self.next_to_fifo = true;
+                } else if self.row_buffer.len() == self.n_chars as usize {
+                    is_paused = true;
+                }
+            }
+        }
+
+        self.dma_paused = is_paused;
+
+        if self.dma_paused {
+            return;
+        }
+
+        self.cur_burst_pos = (self.cur_burst_pos + 1) % self.burst_count;
+
+        if self.cur_burst_pos == 0 {
+            self.dma_timer = 3 + self.burst_space as u32;
+        } else {
+            self.dma_timer = if self.cur_burst_pos == 1 { 7 } else { 3 };
+        }
+    }
+
+    pub fn tick_char(&mut self) -> bool {
+        if !self.raster_running {
+            return false;
         }
 
         self.crt_x += 1;
@@ -590,7 +663,7 @@ impl Kr580Vg75 {
                 self.crt_scan_row += 1;
 
                 if self.crt_scan_row <= self.n_rows as u32 {
-                    self.next_row(vt57, ram);
+                    self.next_row();
                 }
 
                 if self.crt_scan_row == self.n_rows as u32 {
@@ -600,14 +673,23 @@ impl Kr580Vg75 {
                     self.finalize_font_banks();
                     return true;
                 } else if self.crt_scan_row >= (self.n_rows as u32) + (self.n_vr_rows as u32) {
-                    self.next_frame(vt57, ram);
+                    self.next_frame();
                 }
             }
         }
         false
     }
 
-    fn next_row(&mut self, vt57: &mut Kr580Vt57, ram: &[u8; 0x10000]) {
+    fn next_row(&mut self) {
+        if self.is_display_enabled()
+            && self.crt_cur_row < self.n_rows as u32
+            && !self.dma_paused
+            && !self.is_end_of_screen
+        {
+            self.was_dma_underrun = true;
+            self.status |= STATUS_DMA_UNDERRUN;
+        }
+
         self.display_buffer();
 
         self.crt_cur_row = self.crt_scan_row;
@@ -616,9 +698,12 @@ impl Kr580Vg75 {
         self.next_to_fifo = false;
         self.dma_stopped_for_row = false;
 
-        if self.is_display_enabled() && self.crt_cur_row < self.n_rows as u32 {
-            self.fetch_dma_row(vt57, ram);
-        }
+        self.dma_paused = self.crt_cur_row >= self.n_rows as u32
+            || self.is_end_of_screen
+            || self.was_dma_underrun;
+        self.need_extra_byte = false;
+        self.cur_burst_pos = 0;
+        self.dma_timer = 0;
     }
 
     fn prepare_next_frame(&mut self) {
@@ -641,92 +726,14 @@ impl Kr580Vg75 {
         self.fifo_write_pos = 0;
         self.next_to_fifo = false;
         self.dma_stopped_for_row = false;
-        self.dma_bytes_left = 0;
-        self.dma_space_counter = 0;
+        self.dma_paused = false;
+        self.need_extra_byte = false;
+        self.cur_burst_pos = 0;
+        self.dma_timer = 0;
     }
 
-    fn next_frame(&mut self, vt57: &mut Kr580Vt57, ram: &[u8; 0x10000]) {
+    fn next_frame(&mut self) {
         self.prepare_next_frame();
-
-        if self.is_display_enabled() {
-            self.fetch_dma_row(vt57, ram);
-        }
-    }
-
-    fn fetch_dma_row(&mut self, vt57: &mut Kr580Vt57, ram: &[u8; 0x10000]) {
-        if !vt57.is_enabled() || self.is_end_of_screen || self.was_dma_underrun {
-            return;
-        }
-
-        let mut billable_fetches: u8 = 0;
-        let mut cur_burst_pos: u8 = 0;
-        let mut need_extra_byte = false;
-
-        self.dma_space_counter = 0;
-
-        loop {
-            let c = ram[vt57.ch2_addr() as usize];
-            vt57.step_ch2();
-
-            let mut is_paused = false;
-
-            if need_extra_byte {
-                need_extra_byte = false;
-                is_paused = true;
-            } else if self.next_to_fifo {
-                self.fifo[self.fifo_write_pos] = c & 0x7F;
-                self.fifo_write_pos = (self.fifo_write_pos + 1) % MAX_FIFO_LEN;
-                if self.fifo_write_pos == 0 {
-                    self.status |= STATUS_FIFO_OVERRUN;
-                }
-                self.next_to_fifo = false;
-
-                if self.row_buffer.len() == self.n_chars as usize {
-                    is_paused = true;
-                }
-            } else {
-                if self.row_buffer.len() < self.n_chars as usize {
-                    self.row_buffer.push(c);
-                } else {
-                    is_paused = true;
-                }
-
-                if !is_paused {
-                    if (c & SPECIAL_CODE_MASK) == SPECIAL_CODE_VAL {
-                        if (c & SPECIAL_CODE_EOF) != 0 {
-                            self.is_end_of_screen = true;
-                        }
-                        self.dma_stopped_for_row = true;
-
-                        if self.row_buffer.len() == self.n_chars as usize
-                            || cur_burst_pos == self.burst_count - 1
-                        {
-                            is_paused = true;
-                        } else {
-                            need_extra_byte = true;
-                        }
-                    } else if self.transparent_attr
-                        && (c & ATTR_TRANSPARENT_MASK) == ATTR_TRANSPARENT_VAL
-                    {
-                        self.next_to_fifo = true;
-                    } else if self.row_buffer.len() == self.n_chars as usize {
-                        is_paused = true;
-                    }
-                }
-            }
-
-            if !is_paused {
-                billable_fetches += 1;
-            }
-
-            cur_burst_pos = (cur_burst_pos + 1) % self.burst_count;
-
-            if is_paused {
-                break;
-            }
-        }
-
-        self.dma_bytes_left = billable_fetches;
     }
 
     fn display_buffer(&mut self) {
@@ -734,8 +741,8 @@ impl Kr580Vg75 {
         let mut fifo_read_pos = 0;
 
         for i in 0..(self.n_chars as usize) {
-            let mut c = if i < self.row_buffer.len() {
-                self.row_buffer[i]
+            let mut c = if let Some(&char_code) = self.row_buffer.get(i) {
+                char_code
             } else {
                 if !self.dma_stopped_for_row && !self.is_end_of_screen && self.is_display_enabled()
                 {

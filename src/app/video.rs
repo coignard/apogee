@@ -196,9 +196,7 @@ impl VideoRenderer {
                 let g = (curr[1] >> 1) + (prev[1] >> 1);
                 let b = (curr[2] >> 1) + (prev[2] >> 1);
 
-                prev[0] = curr[0];
-                prev[1] = curr[1];
-                prev[2] = curr[2];
+                prev[0..3].copy_from_slice(&curr[0..3]);
 
                 curr[0] = r;
                 curr[1] = g;

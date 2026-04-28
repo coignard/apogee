@@ -28,7 +28,7 @@ pub const CHAR_CLOCK_DIVIDER: u32 = 12;
 const RESET_VECTOR: u16 = 0xF800;
 const TAPE_SYNC_BYTE: u8 = 0xE6;
 
-const DEFAULT_SAMPLE_RATE: u32 = 44_100;
+const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const AUTORUN_DELAY_CYCLES: u32 = 2_000_000;
 const MAX_HALT_STEP_CYCLES: u32 = 100;
 const RKA_HEADER_SIZE: usize = 4;
@@ -227,6 +227,8 @@ impl ApogeeMachine {
         let mut render_requested = false;
 
         for _ in 0..cpu_cycles {
+            self.bus.vg75.tick(&mut self.bus.vt57, &self.bus.ram);
+
             let vi53_mixed = self.bus.vi53.tick();
             let tape_out = self.bus.sys_vv55.is_tape_out_active();
 
@@ -238,7 +240,7 @@ impl ApogeeMachine {
             while self.cclk_acc >= CHAR_CLOCK_DIVIDER {
                 self.cclk_acc -= CHAR_CLOCK_DIVIDER;
 
-                if self.bus.vg75.tick(&mut self.bus.vt57, &self.bus.ram) {
+                if self.bus.vg75.tick_char() {
                     render_frame(&self.bus.vg75);
                     render_requested = true;
                 }
