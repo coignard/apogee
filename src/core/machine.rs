@@ -140,7 +140,7 @@ impl ApogeeMachine {
                         self.step_cpu()
                     };
 
-                    self.advance_system(step, &mut |_| {}, &mut |_| {});
+                    self.tick(step, &mut |_| {}, &mut |_| {});
 
                     if is_halted {
                         self.bus.vt57.sub_halt_cycles(step);
@@ -191,7 +191,7 @@ impl ApogeeMachine {
                 self.step_cpu()
             };
 
-            if self.advance_system(step, &mut push_sample, &mut render_frame) {
+            if self.tick(step, &mut push_sample, &mut render_frame) {
                 render_requested = true;
             }
 
@@ -215,7 +215,7 @@ impl ApogeeMachine {
         (cycles_after - cycles_before) as u32
     }
 
-    fn advance_system<S, R>(
+    fn tick<S, R>(
         &mut self,
         cpu_cycles: u32,
         push_sample: &mut S,
