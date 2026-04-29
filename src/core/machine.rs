@@ -215,12 +215,7 @@ impl ApogeeMachine {
         (cycles_after - cycles_before) as u32
     }
 
-    fn tick<S, R>(
-        &mut self,
-        cpu_cycles: u32,
-        push_sample: &mut S,
-        render_frame: &mut R,
-    ) -> bool
+    fn tick<S, R>(&mut self, cpu_cycles: u32, push_sample: &mut S, render_frame: &mut R) -> bool
     where
         S: FnMut(f32),
         R: FnMut(&crate::core::chips::kr580vg75::Kr580Vg75),
