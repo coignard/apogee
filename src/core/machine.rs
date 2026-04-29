@@ -21,7 +21,7 @@ use iz80::Cpu;
 use super::bus::ApogeeBus;
 use super::sound::AudioMixer;
 
-pub const CPU_FREQ_HZ: u32 = 1_777_777;
+pub const MASTER_CLOCK_HZ: u32 = 16_000_000;
 pub const CPU_DIVIDER: u32 = 9;
 pub const CHAR_CLOCK_DIVIDER: u32 = 12;
 
@@ -50,7 +50,7 @@ impl ApogeeMachine {
         Self {
             cpu,
             bus: ApogeeBus::new(system_rom),
-            audio_mixer: AudioMixer::new(DEFAULT_SAMPLE_RATE, CPU_FREQ_HZ),
+            audio_mixer: AudioMixer::new(DEFAULT_SAMPLE_RATE, MASTER_CLOCK_HZ / CPU_DIVIDER),
             cclk_acc: 0,
             pending_cycles: 0,
         }
@@ -177,7 +177,8 @@ impl ApogeeMachine {
     {
         let mut render_requested = false;
 
-        let new_cycles = (elapsed_secs * CPU_FREQ_HZ as f32) as u32;
+        let cpu_freq = MASTER_CLOCK_HZ as f32 / CPU_DIVIDER as f32;
+        let new_cycles = (elapsed_secs * cpu_freq) as u32;
         self.pending_cycles = self.pending_cycles.saturating_add(new_cycles);
 
         while self.pending_cycles > 0 {
