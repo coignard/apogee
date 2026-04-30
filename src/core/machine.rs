@@ -15,11 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use anyhow::{Result, bail};
 use iz80::Cpu;
+use std::fmt;
 
 use super::bus::Bus;
 use super::chips::kr580vg75::Kr580Vg75;
+pub use super::peripherals::keyboard::Key;
 use super::sound::AudioMixer;
 
 pub const MASTER_CLOCK_HZ: u32 = 16_000_000;
@@ -58,6 +59,29 @@ pub const MAX_FRAME_CYCLES: u32 = ((MAX_CHARS_PER_ROW + MAX_HR_CHARS)
     / CPU_DIVIDER
     + 1;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MachineError {
+    InvalidRkaLength,
+    InvalidAddressRange,
+    FileTooShort,
+    ChecksumMissing,
+    ChecksumMismatch,
+}
+
+impl fmt::Display for MachineError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidRkaLength => write!(f, "file is too short to be a valid RKA"),
+            Self::InvalidAddressRange => write!(f, "start address is greater than end address"),
+            Self::FileTooShort => write!(f, "file is shorter than the expected data length"),
+            Self::ChecksumMissing => write!(f, "checksum block missing"),
+            Self::ChecksumMismatch => write!(f, "checksum mismatch"),
+        }
+    }
+}
+
+impl std::error::Error for MachineError {}
+
 pub struct Machine {
     cpu: Cpu,
     bus: Bus,
@@ -89,7 +113,7 @@ impl Machine {
         is_rka: bool,
         autorun: bool,
         force: bool,
-    ) -> Result<()> {
+    ) -> Result<(), MachineError> {
         if is_rka {
             let offset = if payload.first() == Some(&TAPE_SYNC_BYTE) {
                 1
@@ -98,14 +122,14 @@ impl Machine {
             };
 
             if payload.len() < offset + RKA_HEADER_SIZE {
-                bail!("file is too short to be a valid RKA");
+                return Err(MachineError::InvalidRkaLength);
             }
 
             let start_addr = u16::from_be_bytes([payload[offset], payload[offset + 1]]);
             let end_addr = u16::from_be_bytes([payload[offset + 2], payload[offset + 3]]);
 
             if start_addr > end_addr && !force {
-                bail!("start address is greater than end address");
+                return Err(MachineError::InvalidAddressRange);
             }
 
             let data_start = offset + RKA_HEADER_SIZE;
@@ -120,7 +144,7 @@ impl Machine {
                 if force {
                     payload.len() - data_start
                 } else {
-                    bail!("file is shorter than the expected data length");
+                    return Err(MachineError::FileTooShort);
                 }
             } else {
                 intended_len
@@ -139,15 +163,15 @@ impl Machine {
                 let tail = &payload[data_start + len..];
 
                 let Some(sync_idx) = tail.iter().position(|&b| b == TAPE_SYNC_BYTE) else {
-                    bail!("checksum block missing");
+                    return Err(MachineError::ChecksumMissing);
                 };
 
                 if tail.len() < sync_idx + RKA_TAIL_SIZE {
-                    bail!("missing checksum bytes after sync");
+                    return Err(MachineError::ChecksumMissing);
                 }
 
                 if cs_hi != tail[sync_idx + 1] || cs_lo != tail[sync_idx + 2] {
-                    bail!("checksum mismatch");
+                    return Err(MachineError::ChecksumMismatch);
                 }
             }
 
@@ -176,8 +200,8 @@ impl Machine {
         Ok(())
     }
 
-    pub fn update_key(&mut self, row: usize, col: usize, pressed: bool) {
-        self.bus.keyboard.update_key(row, col, pressed);
+    pub fn update_key(&mut self, key: Key, pressed: bool) {
+        self.bus.keyboard.update_key(key, pressed);
     }
 
     pub fn tick<S>(&mut self, mut push_sample: S) -> bool

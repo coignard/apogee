@@ -17,7 +17,6 @@
 
 pub mod audio;
 pub mod keyboard;
-pub mod video;
 
 use std::sync::Arc;
 
@@ -31,8 +30,9 @@ use winit::window::{Window, WindowId};
 
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::map_keycode;
-use crate::app::video::{ColorMode, SCREEN_HEIGHT, SCREEN_WIDTH, VideoRenderer};
-use crate::core::machine::Machine;
+
+use apogee_rs::core::machine::Machine;
+use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
 pub struct App {
     machine: Machine,
@@ -67,7 +67,10 @@ impl ApplicationHandler for App {
             ColorMode::Grayscale | ColorMode::Bw => "Апогей БК-01",
         };
 
-        let size = LogicalSize::new((SCREEN_WIDTH * 2) as f64, (SCREEN_HEIGHT * 2) as f64);
+        let width = self.video.width();
+        let height = self.video.height();
+
+        let size = LogicalSize::new((width * 2) as f64, (height * 2) as f64);
 
         let window = Arc::new(
             event_loop
@@ -85,23 +88,34 @@ impl ApplicationHandler for App {
             window.clone(),
         );
 
-        self.pixels = Some(
-            Pixels::new(SCREEN_WIDTH, SCREEN_HEIGHT, surface)
-                .expect("Failed to create pixels surface"),
-        );
+        self.pixels =
+            Some(Pixels::new(width, height, surface).expect("Failed to create pixels surface"));
         self.window = Some(window);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Resized(new_size) if new_size.width > 0 && new_size.height > 0 => {
+                if let Some(pixels) = &mut self.pixels
+                    && let Err(err) = pixels.resize_surface(new_size.width, new_size.height)
+                {
+                    self.fatal_error =
+                        Some(anyhow::Error::new(err).context("Pixels resize surface failed"));
+                    event_loop.exit();
+                    return;
+                }
+                if let Some(win) = &self.window {
+                    win.request_redraw();
+                }
+            }
             WindowEvent::KeyboardInput { event, .. } => {
-                if let PhysicalKey::Code(key) = event.physical_key
+                if let PhysicalKey::Code(key_code) = event.physical_key
                     && !event.repeat
-                    && let Some((row, col)) = map_keycode(key)
+                    && let Some(key) = map_keycode(key_code)
                 {
                     let pressed = event.state == ElementState::Pressed;
-                    self.machine.update_key(row, col, pressed);
+                    self.machine.update_key(key, pressed);
                 }
             }
             WindowEvent::RedrawRequested => {
@@ -128,9 +142,10 @@ impl ApplicationHandler for App {
             return;
         }
 
-        let cpu_freq = crate::core::machine::MASTER_CLOCK_HZ / crate::core::machine::CPU_DIVIDER;
+        let cpu_freq =
+            apogee_rs::core::machine::MASTER_CLOCK_HZ / apogee_rs::core::machine::CPU_DIVIDER;
         let samples_per_frame = (self.audio.sample_rate as u64
-            * crate::core::machine::DEFAULT_FRAME_CYCLES as u64)
+            * apogee_rs::core::machine::DEFAULT_FRAME_CYCLES as u64)
             / cpu_freq as u64;
         let latency_samples = ((samples_per_frame * 3) / 2) as usize;
 
@@ -143,6 +158,7 @@ impl ApplicationHandler for App {
         event_loop.set_control_flow(ControlFlow::Poll);
 
         let mut frame_ready_for_render = false;
+        let mut size_changed = false;
         let mut audio_alive = true;
         let tx = &self.audio.tx;
 
@@ -156,6 +172,9 @@ impl ApplicationHandler for App {
             });
 
             if vblank_occurred {
+                if self.video.render_frame(self.machine.vg75()) {
+                    size_changed = true;
+                }
                 frame_ready_for_render = true;
             }
         }
@@ -167,7 +186,20 @@ impl ApplicationHandler for App {
         }
 
         if frame_ready_for_render {
-            self.video.render_frame(self.machine.vg75());
+            if size_changed {
+                let w = self.video.width();
+                let h = self.video.height();
+
+                if let Some(pixels) = &mut self.pixels
+                    && let Err(err) = pixels.resize_buffer(w, h)
+                {
+                    self.fatal_error =
+                        Some(anyhow::Error::new(err).context("Pixels resize buffer failed"));
+                    event_loop.exit();
+                    return;
+                }
+            }
+
             if let Some(w) = &self.window {
                 w.request_redraw();
             }

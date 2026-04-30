@@ -15,9 +15,4 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod bus;
-pub mod chips;
-pub mod machine;
-pub mod peripherals;
-pub mod sound;
-pub mod video;
+pub mod core;

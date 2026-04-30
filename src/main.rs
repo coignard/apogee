@@ -16,7 +16,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod app;
-mod core;
 
 use std::fs;
 
@@ -27,8 +26,9 @@ use winit::event_loop::EventLoop;
 
 use crate::app::App;
 use crate::app::audio::AudioSystem;
-use crate::app::video::{ColorMode, VideoRenderer};
-use crate::core::machine::Machine;
+
+use apogee_rs::core::machine::Machine;
+use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
 const SYSTEM_ROM: &[u8] = include_bytes!("../dist/roms/apogee.rom");
 const FONT_ROM: &[u8] = include_bytes!("../dist/fonts/sga.bin");

@@ -17,14 +17,11 @@
 
 use crate::core::chips::kr580vg75::Kr580Vg75;
 
-const CHAR_WIDTH: usize = 6;
-const CHARS_PER_ROW: usize = 78;
-const ROWS_PER_SCREEN: usize = 30;
-const LINES_PER_ROW: usize = 10;
+pub const CHAR_WIDTH: usize = 6;
+const DEFAULT_CHARS_PER_ROW: usize = 78;
+const DEFAULT_ROWS_PER_SCREEN: usize = 30;
+const DEFAULT_LINES_PER_ROW: usize = 10;
 const FONT_ALT_BANK_OFFSET: usize = 128;
-
-pub const SCREEN_WIDTH: u32 = (CHARS_PER_ROW * CHAR_WIDTH) as u32;
-pub const SCREEN_HEIGHT: u32 = (ROWS_PER_SCREEN * LINES_PER_ROW) as u32;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ColorMode {
@@ -48,19 +45,36 @@ pub struct VideoRenderer {
     pub font_rom: Vec<u8>,
     pub color_mode: ColorMode,
     is_crt_blend: bool,
+    width: u32,
+    height: u32,
     frame_buffer: Vec<u8>,
     prev_frame_buffer: Vec<u8>,
 }
 
 impl VideoRenderer {
     pub fn new(font_rom: Vec<u8>, color_mode: ColorMode, is_crt_blend: bool) -> Self {
+        let width = (DEFAULT_CHARS_PER_ROW * CHAR_WIDTH) as u32;
+        let height = (DEFAULT_ROWS_PER_SCREEN * DEFAULT_LINES_PER_ROW) as u32;
+
         Self {
             font_rom,
             color_mode,
             is_crt_blend,
-            frame_buffer: vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * 4) as usize],
-            prev_frame_buffer: vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * 4) as usize],
+            width,
+            height,
+            frame_buffer: vec![0; (width * height * 4) as usize],
+            prev_frame_buffer: vec![0; (width * height * 4) as usize],
         }
+    }
+
+    #[inline]
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    #[inline]
+    pub fn height(&self) -> u32 {
+        self.height
     }
 
     #[inline]
@@ -68,18 +82,38 @@ impl VideoRenderer {
         &self.frame_buffer
     }
 
-    pub fn render_frame(&mut self, vg75: &Kr580Vg75) {
+    pub fn render_frame(&mut self, vg75: &Kr580Vg75) -> bool {
+        let parsed_frame = vg75.parsed_frame();
+        let max_rows = parsed_frame.len();
+        let max_chars = parsed_frame[0].len();
+
+        let n_rows = (vg75.n_rows() as usize).min(max_rows);
+        let n_chars = (vg75.n_chars() as usize).min(max_chars);
+        let n_lines = vg75.n_lines() as usize;
+
+        let new_width = ((n_chars * CHAR_WIDTH) as u32).max(CHAR_WIDTH as u32);
+        let new_height = ((n_rows * n_lines) as u32).max(1);
+
+        let mut size_changed = false;
+
+        if new_width != self.width || new_height != self.height {
+            self.width = new_width;
+            self.height = new_height;
+            let buf_size = (self.width * self.height * 4) as usize;
+
+            self.frame_buffer.resize(buf_size, 0);
+            self.prev_frame_buffer.resize(buf_size, 0);
+
+            size_changed = true;
+        }
+
         let bg_color = [0, 0, 0, 255];
 
         for px in self.frame_buffer.chunks_exact_mut(4) {
             px.copy_from_slice(&bg_color);
         }
 
-        let n_rows = vg75.n_rows() as usize;
-        let n_lines = vg75.n_lines() as usize;
-        let n_chars = vg75.n_chars() as usize;
-
-        for row in 0..n_rows {
+        for (row, frame_row) in parsed_frame.iter().enumerate().take(n_rows) {
             let chargen = if vg75.row_font_bank(row % 64) {
                 FONT_ALT_BANK_OFFSET
             } else {
@@ -98,20 +132,20 @@ impl VideoRenderer {
                 };
 
                 let py = row * n_lines + ln;
-                if py >= SCREEN_HEIGHT as usize {
+                if py >= self.height as usize {
                     continue;
                 }
 
-                let px_base_y = py * (SCREEN_WIDTH as usize);
+                let px_base_y = py * (self.width as usize);
 
                 for x in 0..n_chars {
-                    let sym = &vg75.parsed_frame()[row % 64][x];
+                    let sym = &frame_row[x];
                     let vsp = sym.get_vsp(ln);
                     let lten = sym.get_lten(ln);
 
                     let is_bw = self.color_mode == ColorMode::Bw;
                     let attr_sym = if is_bw && x < n_chars - 1 {
-                        &vg75.parsed_frame()[row % 64][x + 1]
+                        &frame_row[x + 1]
                     } else {
                         sym
                     };
@@ -163,7 +197,7 @@ impl VideoRenderer {
                     let px_base = x * CHAR_WIDTH;
                     for col in 0..CHAR_WIDTH {
                         let px = px_base + col;
-                        if px >= SCREEN_WIDTH as usize {
+                        if px >= self.width as usize {
                             continue;
                         }
 
@@ -187,21 +221,27 @@ impl VideoRenderer {
         }
 
         if self.is_crt_blend {
-            for (curr, prev) in self
-                .frame_buffer
-                .chunks_exact_mut(4)
-                .zip(self.prev_frame_buffer.chunks_exact_mut(4))
-            {
-                let r = (curr[0] >> 1) + (prev[0] >> 1);
-                let g = (curr[1] >> 1) + (prev[1] >> 1);
-                let b = (curr[2] >> 1) + (prev[2] >> 1);
+            if size_changed {
+                self.prev_frame_buffer.copy_from_slice(&self.frame_buffer);
+            } else {
+                for (curr, prev) in self
+                    .frame_buffer
+                    .chunks_exact_mut(4)
+                    .zip(self.prev_frame_buffer.chunks_exact_mut(4))
+                {
+                    let r = ((curr[0] as u16 + prev[0] as u16) >> 1) as u8;
+                    let g = ((curr[1] as u16 + prev[1] as u16) >> 1) as u8;
+                    let b = ((curr[2] as u16 + prev[2] as u16) >> 1) as u8;
 
-                prev[0..3].copy_from_slice(&curr[0..3]);
+                    prev[0..3].copy_from_slice(&curr[0..3]);
 
-                curr[0] = r;
-                curr[1] = g;
-                curr[2] = b;
+                    curr[0] = r;
+                    curr[1] = g;
+                    curr[2] = b;
+                }
             }
         }
+
+        size_changed
     }
 }
