@@ -336,30 +336,42 @@ impl Kr580Vg75 {
     pub fn is_display_enabled(&self) -> bool {
         (self.status & STATUS_VIDEO_ENABLE) != 0
     }
+
+    #[inline]
+    pub fn is_raster_running(&self) -> bool {
+        self.raster_running
+    }
+
     #[inline]
     pub fn is_ints_enabled(&self) -> bool {
         (self.status & STATUS_INT_ENABLE) != 0
     }
+
     #[inline]
     pub fn n_rows(&self) -> u8 {
         self.n_rows
     }
+
     #[inline]
     pub fn n_lines(&self) -> u8 {
         self.n_lines
     }
+
     #[inline]
     pub fn n_chars(&self) -> u8 {
         self.n_chars
     }
+
     #[inline]
     pub fn font_down(&self) -> bool {
         self.font_down
     }
+
     #[inline]
     pub fn row_font_bank(&self, row: usize) -> bool {
         self.row_font_banks[row]
     }
+
     #[inline]
     pub fn parsed_frame(&self) -> &[[ParsedSymbol; MAX_CHARS]; MAX_ROWS] {
         &self.parsed_frame

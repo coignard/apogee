@@ -21,7 +21,7 @@ use super::chips::kr580vg75::Kr580Vg75;
 use super::chips::kr580vi53::Kr580Vi53;
 use super::chips::kr580vt57::Kr580Vt57;
 use super::chips::kr580vv55a::Kr580Vv55a;
-use super::peripherals::keyboard::ApogeeKeyboard;
+use super::peripherals::keyboard::Keyboard;
 use super::peripherals::romdisk::RomDisk;
 
 pub mod memory_map {
@@ -39,7 +39,7 @@ pub mod memory_map {
     pub const DMA_ROM_END: u16 = 0xFFFF;
 }
 
-pub struct ApogeeBus {
+pub struct Bus {
     pub(crate) ram: Box<[u8; 0x10000]>,
     pub(crate) system_rom: Vec<u8>,
 
@@ -50,11 +50,11 @@ pub struct ApogeeBus {
     pub(crate) sys_vv55: Kr580Vv55a,
     pub(crate) user_vv55: Kr580Vv55a,
 
-    pub(crate) keyboard: ApogeeKeyboard,
+    pub(crate) keyboard: Keyboard,
     pub(crate) romdisk: RomDisk,
 }
 
-impl ApogeeBus {
+impl Bus {
     pub fn new(system_rom: Vec<u8>) -> Self {
         Self {
             ram: Box::new([0; 0x10000]),
@@ -64,13 +64,13 @@ impl ApogeeBus {
             vg75: Kr580Vg75::new(),
             sys_vv55: Kr580Vv55a::new(),
             user_vv55: Kr580Vv55a::new(),
-            keyboard: ApogeeKeyboard::new(),
+            keyboard: Keyboard::new(),
             romdisk: RomDisk::new(),
         }
     }
 }
 
-impl Machine for ApogeeBus {
+impl Machine for Bus {
     fn peek(&mut self, addr: u16) -> u8 {
         match addr {
             memory_map::RAM_START..=memory_map::RAM_END => self.ram[addr as usize],

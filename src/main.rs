@@ -26,8 +26,9 @@ use sha2::{Digest, Sha256};
 use winit::event_loop::EventLoop;
 
 use crate::app::App;
+use crate::app::audio::AudioSystem;
 use crate::app::video::{ColorMode, VideoRenderer};
-use crate::core::machine::ApogeeMachine;
+use crate::core::machine::Machine;
 
 const SYSTEM_ROM: &[u8] = include_bytes!("../dist/roms/apogee.rom");
 const FONT_ROM: &[u8] = include_bytes!("../dist/fonts/sga.bin");
@@ -118,6 +119,8 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
 
+    let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
+
     let color_mode = if args.bw {
         ColorMode::Bw
     } else if args.grayscale {
@@ -126,19 +129,27 @@ fn main() -> Result<()> {
         ColorMode::Color
     };
 
-    let mut machine = ApogeeMachine::new(SYSTEM_ROM.to_vec());
+    let audio = AudioSystem::new().context("Failed to initialize audio system")?;
+    let mut machine = Machine::new(SYSTEM_ROM.to_vec(), audio.sample_rate);
     let video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, args.crt);
 
     if let Some(path) = &args.file {
         let data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
+        let is_rka = path.to_lowercase().ends_with(".rka");
+
         machine
-            .load_rom(&data, true, args.autorun, args.force)
-            .with_context(|| format!("invalid RKA file '{}'", path))?;
+            .load_rom(&data, is_rka, args.autorun, args.force)
+            .with_context(|| {
+                if is_rka {
+                    format!("invalid RKA file '{}'", path)
+                } else {
+                    format!("invalid ROM disk file '{}'", path)
+                }
+            })?;
     }
 
-    let mut app = App::new(machine, video)?;
+    let mut app = App::new(machine, video, audio);
 
-    let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
     event_loop
         .run_app(&mut app)
         .context("Application execution failed")?;

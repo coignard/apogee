@@ -21,11 +21,11 @@ const MODIFIER_PORT_C_MASK: u8 = 0xE0;
 const PORT_C_FIXED_BITS: u8 = 0x0F;
 
 #[derive(Clone, Copy)]
-pub struct ApogeeKeyboard {
+pub struct Keyboard {
     pub matrix: [u8; MATRIX_SIZE],
 }
 
-impl ApogeeKeyboard {
+impl Keyboard {
     pub fn new() -> Self {
         Self {
             matrix: [0xFF; MATRIX_SIZE],
@@ -53,7 +53,7 @@ impl ApogeeKeyboard {
     }
 }
 
-impl Default for ApogeeKeyboard {
+impl Default for Keyboard {
     fn default() -> Self {
         Self::new()
     }

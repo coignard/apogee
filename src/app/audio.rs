@@ -19,7 +19,6 @@ use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::bounded;
 
-const AUDIO_QUEUE_CAPACITY: usize = 8192;
 const DC_BLOCKER_ALPHA: f32 = 0.999;
 
 pub struct AudioSystem {
@@ -42,7 +41,9 @@ impl AudioSystem {
         let sample_rate = config.sample_rate();
         let channels = config.channels() as usize;
 
-        let (tx, rx) = bounded::<f32>(AUDIO_QUEUE_CAPACITY);
+        let channel_capacity = (sample_rate / 2) as usize;
+
+        let (tx, rx) = bounded::<f32>(channel_capacity);
         let (err_tx, err_rx) = bounded::<anyhow::Error>(1);
 
         let mut dc_blocker = 0.0;

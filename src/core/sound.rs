@@ -19,25 +19,23 @@ const VOLUME_SCALE: f32 = 0.05;
 
 pub struct AudioMixer {
     sample_rate: u32,
-    cpu_freq: u32,
+    master_clock_hz: u32,
+    cpu_divider: u32,
     audio_phase: u32,
     audio_sum: i32,
     audio_samples: u32,
 }
 
 impl AudioMixer {
-    pub fn new(sample_rate: u32, cpu_freq: u32) -> Self {
+    pub fn new(sample_rate: u32, master_clock_hz: u32, cpu_divider: u32) -> Self {
         Self {
             sample_rate,
-            cpu_freq,
+            master_clock_hz,
+            cpu_divider,
             audio_phase: 0,
             audio_sum: 0,
             audio_samples: 0,
         }
-    }
-
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
-        self.sample_rate = sample_rate;
     }
 
     pub fn tick(&mut self, vi53_mixed: i32, tape_out_state: bool) -> Option<f32> {
@@ -47,10 +45,10 @@ impl AudioMixer {
         self.audio_sum += mixed;
         self.audio_samples += 1;
 
-        self.audio_phase += self.sample_rate;
+        self.audio_phase += self.sample_rate * self.cpu_divider;
 
-        if self.audio_phase >= self.cpu_freq {
-            self.audio_phase -= self.cpu_freq;
+        if self.audio_phase >= self.master_clock_hz {
+            self.audio_phase -= self.master_clock_hz;
 
             if self.audio_samples > 0 {
                 let avg_sample = self.audio_sum as f32 / self.audio_samples as f32;

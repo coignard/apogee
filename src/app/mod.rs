@@ -20,9 +20,7 @@ pub mod keyboard;
 pub mod video;
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
-use anyhow::Result;
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -34,35 +32,27 @@ use winit::window::{Window, WindowId};
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::map_keycode;
 use crate::app::video::{ColorMode, SCREEN_HEIGHT, SCREEN_WIDTH, VideoRenderer};
-use crate::core::machine::ApogeeMachine;
-
-const MAX_QUEUED_AUDIO_SAMPLES: usize = 2048;
-const THROTTLE_WAIT_MS: u64 = 1;
+use crate::core::machine::Machine;
 
 pub struct App {
-    machine: ApogeeMachine,
+    machine: Machine,
     video: VideoRenderer,
     audio: AudioSystem,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
-    last_time: Instant,
     pub fatal_error: Option<anyhow::Error>,
 }
 
 impl App {
-    pub fn new(mut machine: ApogeeMachine, video: VideoRenderer) -> Result<Self> {
-        let audio = AudioSystem::new()?;
-        machine.set_sample_rate(audio.sample_rate);
-
-        Ok(Self {
+    pub fn new(machine: Machine, video: VideoRenderer, audio: AudioSystem) -> Self {
+        Self {
             machine,
             video,
             audio,
             window: None,
             pixels: None,
-            last_time: Instant::now(),
             fatal_error: None,
-        })
+        }
     }
 }
 
@@ -100,7 +90,6 @@ impl ApplicationHandler for App {
                 .expect("Failed to create pixels surface"),
         );
         self.window = Some(window);
-        self.last_time = Instant::now();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -139,36 +128,49 @@ impl ApplicationHandler for App {
             return;
         }
 
-        if self.audio.tx.len() > MAX_QUEUED_AUDIO_SAMPLES {
-            event_loop.set_control_flow(ControlFlow::WaitUntil(
-                Instant::now() + Duration::from_millis(THROTTLE_WAIT_MS),
-            ));
+        let cpu_freq = crate::core::machine::MASTER_CLOCK_HZ / crate::core::machine::CPU_DIVIDER;
+        let samples_per_frame = (self.audio.sample_rate as u64
+            * crate::core::machine::DEFAULT_FRAME_CYCLES as u64)
+            / cpu_freq as u64;
+        let latency_samples = ((samples_per_frame * 3) / 2) as usize;
+
+        if self.audio.tx.len() >= latency_samples {
+            event_loop.set_control_flow(ControlFlow::Poll);
+            std::thread::yield_now();
             return;
         }
 
-        let now = Instant::now();
-        let dt = now.duration_since(self.last_time).as_secs_f32().min(0.05);
-        self.last_time = now;
-
         event_loop.set_control_flow(ControlFlow::Poll);
 
-        let mut frame_rendered = false;
+        let mut frame_ready_for_render = false;
+        let mut audio_alive = true;
         let tx = &self.audio.tx;
-        let video = &mut self.video;
 
-        self.machine.run(
-            dt,
-            |sample| {
-                let _ = tx.try_send(sample);
-            },
-            |vg75| {
-                video.render_frame(vg75);
-                frame_rendered = true;
-            },
-        );
+        while tx.len() < latency_samples && audio_alive {
+            let vblank_occurred = self.machine.tick(|sample| match tx.try_send(sample) {
+                Ok(_) => {}
+                Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
+                    audio_alive = false;
+                }
+                Err(crossbeam_channel::TrySendError::Full(_)) => {}
+            });
 
-        if frame_rendered && let Some(w) = &self.window {
-            w.request_redraw();
+            if vblank_occurred {
+                frame_ready_for_render = true;
+            }
+        }
+
+        if !audio_alive {
+            self.fatal_error = Some(anyhow::anyhow!("Audio device disconnected"));
+            event_loop.exit();
+            return;
+        }
+
+        if frame_ready_for_render {
+            self.video.render_frame(self.machine.vg75());
+            if let Some(w) = &self.window {
+                w.request_redraw();
+            }
         }
     }
 }

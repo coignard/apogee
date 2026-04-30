@@ -18,7 +18,8 @@
 use anyhow::{Result, bail};
 use iz80::Cpu;
 
-use super::bus::ApogeeBus;
+use super::bus::Bus;
+use super::chips::kr580vg75::Kr580Vg75;
 use super::sound::AudioMixer;
 
 pub const MASTER_CLOCK_HZ: u32 = 16_000_000;
@@ -28,36 +29,58 @@ pub const CHAR_CLOCK_DIVIDER: u32 = 12;
 const RESET_VECTOR: u16 = 0xF800;
 const TAPE_SYNC_BYTE: u8 = 0xE6;
 
-const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const AUTORUN_DELAY_CYCLES: u32 = 2_000_000;
-const MAX_HALT_STEP_CYCLES: u32 = 100;
 const RKA_HEADER_SIZE: usize = 4;
 const RKA_TAIL_SIZE: usize = 3;
 
-pub struct ApogeeMachine {
+pub const DEFAULT_CHARS_PER_ROW: u32 = 78;
+pub const DEFAULT_HR_CHARS: u32 = 18;
+pub const DEFAULT_DISPLAY_ROWS: u32 = 30;
+pub const DEFAULT_VR_ROWS: u32 = 4;
+pub const DEFAULT_LINES_PER_ROW: u32 = 10;
+
+pub const DEFAULT_FRAME_CYCLES: u32 = ((DEFAULT_CHARS_PER_ROW + DEFAULT_HR_CHARS)
+    * (DEFAULT_DISPLAY_ROWS + DEFAULT_VR_ROWS)
+    * DEFAULT_LINES_PER_ROW
+    * CHAR_CLOCK_DIVIDER)
+    / CPU_DIVIDER;
+
+pub const MAX_CHARS_PER_ROW: u32 = 128;
+pub const MAX_HR_CHARS: u32 = 32;
+pub const MAX_DISPLAY_ROWS: u32 = 64;
+pub const MAX_VR_ROWS: u32 = 4;
+pub const MAX_LINES_PER_ROW: u32 = 16;
+
+pub const MAX_FRAME_CYCLES: u32 = ((MAX_CHARS_PER_ROW + MAX_HR_CHARS)
+    * (MAX_DISPLAY_ROWS + MAX_VR_ROWS)
+    * MAX_LINES_PER_ROW
+    * CHAR_CLOCK_DIVIDER)
+    / CPU_DIVIDER
+    + 1;
+
+pub struct Machine {
     cpu: Cpu,
-    bus: ApogeeBus,
+    bus: Bus,
     audio_mixer: AudioMixer,
     cclk_acc: u32,
-    pending_cycles: u32,
 }
 
-impl ApogeeMachine {
-    pub fn new(system_rom: Vec<u8>) -> Self {
+impl Machine {
+    pub fn new(system_rom: Vec<u8>, sample_rate: u32) -> Self {
         let mut cpu = Cpu::new_8080();
         cpu.registers().set_pc(RESET_VECTOR);
 
         Self {
             cpu,
-            bus: ApogeeBus::new(system_rom),
-            audio_mixer: AudioMixer::new(DEFAULT_SAMPLE_RATE, MASTER_CLOCK_HZ / CPU_DIVIDER),
+            bus: Bus::new(system_rom),
+            audio_mixer: AudioMixer::new(sample_rate, MASTER_CLOCK_HZ, CPU_DIVIDER),
             cclk_acc: 0,
-            pending_cycles: 0,
         }
     }
 
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
-        self.audio_mixer.set_sample_rate(sample_rate);
+    #[inline]
+    pub fn vg75(&self) -> &Kr580Vg75 {
+        &self.bus.vg75
     }
 
     pub fn load_rom(
@@ -131,21 +154,8 @@ impl ApogeeMachine {
             if autorun {
                 let mut cycles_done = 0;
                 while cycles_done < AUTORUN_DELAY_CYCLES {
-                    let halt_cycles = self.bus.vt57.halt_cycles();
-                    let is_halted = halt_cycles > 0;
-
-                    let step = if is_halted {
-                        halt_cycles.min(MAX_HALT_STEP_CYCLES)
-                    } else {
-                        self.step_cpu()
-                    };
-
-                    self.tick(step, &mut |_| {}, &mut |_| {});
-
-                    if is_halted {
-                        self.bus.vt57.sub_halt_cycles(step);
-                    }
-                    cycles_done += step;
+                    self.tick(|_| {});
+                    cycles_done += DEFAULT_FRAME_CYCLES;
                 }
             }
 
@@ -170,41 +180,57 @@ impl ApogeeMachine {
         self.bus.keyboard.update_key(row, col, pressed);
     }
 
-    pub fn run<S, R>(&mut self, elapsed_secs: f32, mut push_sample: S, mut render_frame: R) -> bool
+    pub fn tick<S>(&mut self, mut push_sample: S) -> bool
     where
         S: FnMut(f32),
-        R: FnMut(&crate::core::chips::kr580vg75::Kr580Vg75),
     {
-        let mut render_requested = false;
+        let mut vblank_occurred = false;
+        let mut frame_cycles = 0;
 
-        let cpu_freq = MASTER_CLOCK_HZ as f32 / CPU_DIVIDER as f32;
-        let new_cycles = (elapsed_secs * cpu_freq) as u32;
-        self.pending_cycles = self.pending_cycles.saturating_add(new_cycles);
+        let target_cycles = if self.bus.vg75.is_raster_running() {
+            MAX_FRAME_CYCLES
+        } else {
+            DEFAULT_FRAME_CYCLES
+        };
 
-        while self.pending_cycles > 0 {
+        while !vblank_occurred && frame_cycles < target_cycles {
             let halt_cycles = self.bus.vt57.halt_cycles();
-            let is_halted = halt_cycles > 0;
 
-            let step = if is_halted {
-                halt_cycles.min(self.pending_cycles)
+            let elapsed_cycles = if halt_cycles > 0 {
+                self.bus.vt57.sub_halt_cycles(halt_cycles);
+                halt_cycles
             } else {
-                self.step_cpu()
+                self.execute_cpu_instruction()
             };
 
-            if self.tick(step, &mut push_sample, &mut render_frame) {
-                render_requested = true;
-            }
+            frame_cycles += elapsed_cycles;
 
-            if is_halted {
-                self.bus.vt57.sub_halt_cycles(step);
+            for _ in 0..elapsed_cycles {
+                self.bus.vg75.tick(&mut self.bus.vt57, &self.bus.ram);
+
+                let vi53_mixed = self.bus.vi53.tick();
+                let tape_out = self.bus.sys_vv55.is_tape_out_active();
+
+                if let Some(sample) = self.audio_mixer.tick(vi53_mixed, tape_out) {
+                    push_sample(sample);
+                }
+
+                self.cclk_acc += CPU_DIVIDER;
+                while self.cclk_acc >= CHAR_CLOCK_DIVIDER {
+                    self.cclk_acc -= CHAR_CLOCK_DIVIDER;
+
+                    if self.bus.vg75.tick_char() {
+                        vblank_occurred = true;
+                    }
+                }
             }
-            self.pending_cycles = self.pending_cycles.saturating_sub(step);
         }
 
-        render_requested
+        vblank_occurred
     }
 
-    fn step_cpu(&mut self) -> u32 {
+    #[inline]
+    fn execute_cpu_instruction(&mut self) -> u32 {
         let cycles_before = self.cpu.cycle_count();
         self.cpu.execute_instruction(&mut self.bus);
         let cycles_after = self.cpu.cycle_count();
@@ -213,36 +239,5 @@ impl ApogeeMachine {
         self.bus.vg75.set_inte(inte);
 
         (cycles_after - cycles_before) as u32
-    }
-
-    fn tick<S, R>(&mut self, cpu_cycles: u32, push_sample: &mut S, render_frame: &mut R) -> bool
-    where
-        S: FnMut(f32),
-        R: FnMut(&crate::core::chips::kr580vg75::Kr580Vg75),
-    {
-        let mut render_requested = false;
-
-        for _ in 0..cpu_cycles {
-            self.bus.vg75.tick(&mut self.bus.vt57, &self.bus.ram);
-
-            let vi53_mixed = self.bus.vi53.tick();
-            let tape_out = self.bus.sys_vv55.is_tape_out_active();
-
-            if let Some(sample) = self.audio_mixer.tick(vi53_mixed, tape_out) {
-                push_sample(sample);
-            }
-
-            self.cclk_acc += CPU_DIVIDER;
-            while self.cclk_acc >= CHAR_CLOCK_DIVIDER {
-                self.cclk_acc -= CHAR_CLOCK_DIVIDER;
-
-                if self.bus.vg75.tick_char() {
-                    render_frame(&self.bus.vg75);
-                    render_requested = true;
-                }
-            }
-        }
-
-        render_requested
     }
 }
