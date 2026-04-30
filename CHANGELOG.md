@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.4
+
+### Added
+- `DEFAULT_FRAME_CYCLES` and `MAX_FRAME_CYCLES` compile-time constants derived directly from VG75 and CPU hardware specs; replace all remaining magic cycle and latency numbers
+- `is_raster_running()` accessor on `Kr580Vg75`
+
+### Changed
+- Synchronization model replaced: wall-clock / delta-time loop removed in favour of audio-buffer-driven execution; `machine.run(elapsed_secs, ...)` to `machine.tick(push_sample)` returning a `bool` vblank flag
+- Frame rendering decoupled from the tick callback; `render_frame` closure removed from the machine API — rendering is triggered in the event loop only when `tick()` returns `true`
+- Throttle guard replaced with a hot `ControlFlow::Poll` + `yield_now()` spin against a hardware-derived 1.5-frame audio latency watermark, eliminating OS-sleep wake-up jitter
+- `AudioMixer` phase accumulator reworked to operate on `master_clock_hz` and `cpu_divider` directly instead of a pre-divided `cpu_freq`; removes rounding error and makes drift mathematically impossible
+- Audio channel capacity changed from hardcoded `8192` to `sample_rate / 2` (0.5 seconds), providing a reliable shock absorber against OS thread suspension
+- `AudioSystem` is now constructed before `Machine`; sample rate is passed at construction time, removing `set_sample_rate()`
+- `App::new()` made infallible; audio initialisation moved to `main()`
+- `Instant` / `Duration` imports and `last_time` field removed from `App`
+- `pending_cycles` field removed from `Machine`
+
+### Removed
+- Redundant `rfd` dependency
+
 ## 0.1.3
 
 ### Changed
