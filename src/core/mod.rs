@@ -19,5 +19,5 @@ pub mod bus;
 pub mod chips;
 pub mod machine;
 pub mod peripherals;
-pub mod sound;
+pub mod audio;
 pub mod video;
