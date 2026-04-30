@@ -18,10 +18,10 @@
 use iz80::Cpu;
 use std::fmt;
 
+use super::audio::AudioMixer;
 use super::bus::Bus;
 use super::chips::kr580vg75::Kr580Vg75;
 pub use super::peripherals::keyboard::Key;
-use super::audio::AudioMixer;
 
 pub const MASTER_CLOCK_HZ: u32 = 16_000_000;
 pub const CPU_DIVIDER: u32 = 9;
