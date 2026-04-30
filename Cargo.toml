@@ -1,6 +1,6 @@
 [package]
 name = "apogee"
-version = "0.1.3"
+version = "0.1.4"
 authors = [
     "René Coignard <contact@renecoignard.com>"
 ]
@@ -23,7 +23,6 @@ crossbeam-channel = "0.5.15"
 hex = "0.4.3"
 iz80 = "0.4.4"
 pixels = "0.17.0"
-rfd = "0.17.2"
 sha2 = "0.11.0"
 winit = "0.30.13"
 
