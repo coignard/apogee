@@ -1,5 +1,5 @@
 [package]
-name = "apogee"
+name = "apogee-rs"
 version = "0.1.4"
 authors = [
     "René Coignard <contact@renecoignard.com>"
@@ -22,7 +22,7 @@ cpal = "0.17.3"
 crossbeam-channel = "0.5.15"
 hex = "0.4.3"
 iz80 = "0.4.4"
-pixels = "0.17.0"
+pixels = "0.17.1"
 sha2 = "0.11.0"
 winit = "0.30.13"
 
