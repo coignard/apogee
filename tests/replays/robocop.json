@@ -1,0 +1,156 @@
+{
+  "metadata": {
+    "rom_name": "robocop",
+    "rom_sha256": "42bc4bc92475d4e84cf1b145d0fcea6d104ec2da421cc6880ea8d14fdfaeae2c",
+    "autorun": false,
+    "sample_rate": 44100,
+    "color_mode": "Color",
+    "is_crt": false
+  },
+  "events": [
+    {
+      "frame": 2842673,
+      "action": {
+        "KeyDown": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 2984854,
+      "action": {
+        "KeyUp": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 3375866,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 3482505,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 6930537,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_6930537"
+        }
+      }
+    },
+    {
+      "frame": 24305744,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_24305744"
+        }
+      }
+    },
+    {
+      "frame": 37785038,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_37785038"
+        }
+      }
+    },
+    {
+      "frame": 38708796,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_38708796"
+        }
+      }
+    },
+    {
+      "frame": 38736775,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_38736775"
+        }
+      }
+    },
+    {
+      "frame": 45059959,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_45059959"
+        }
+      }
+    },
+    {
+      "frame": 54227779,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_54227779"
+        }
+      }
+    },
+    {
+      "frame": 107974348,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_107974348"
+        }
+      }
+    },
+    {
+      "frame": 165815880,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_165815880"
+        }
+      }
+    },
+    {
+      "frame": 196272268,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_196272268"
+        }
+      }
+    },
+    {
+      "frame": 225278344,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_225278344"
+        }
+      }
+    },
+    {
+      "frame": 302826951,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_302826951"
+        }
+      }
+    },
+    {
+      "frame": 342610777,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_342610777"
+        }
+      }
+    },
+    {
+      "frame": 400139503,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_400139503"
+        }
+      }
+    }
+  ]
+}

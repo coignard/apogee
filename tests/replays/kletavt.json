@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "rom_name": "kletavt",
+    "rom_sha256": "cc553a0c36aca27c4ba1ab27bdeba0073b9332a966bc5f95593c3dc16b66223b",
+    "autorun": false,
+    "sample_rate": 44100,
+    "color_mode": "Color",
+    "is_crt": false
+  },
+  "events": [
+    {
+      "frame": 994244,
+      "action": {
+        "KeyDown": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 1136426,
+      "action": {
+        "KeyUp": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 2202829,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 2309467,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 3226572,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_3226572"
+        }
+      }
+    },
+    {
+      "frame": 12269651,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_12269651"
+        }
+      }
+    },
+    {
+      "frame": 13407141,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_13407141"
+        }
+      }
+    },
+    {
+      "frame": 13805257,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_13805257"
+        }
+      }
+    },
+    {
+      "frame": 26346121,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_26346121"
+        }
+      }
+    },
+    {
+      "frame": 37465120,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_37465120"
+        }
+      }
+    }
+  ]
+}

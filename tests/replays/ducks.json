@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "rom_name": "ducks",
+    "rom_sha256": "262b653bb227ae5544e35e3fa0707dc43f06ebd36f167658683fd65ec239c788",
+    "autorun": true,
+    "sample_rate": 44100,
+    "color_mode": "Color",
+    "is_crt": false
+  },
+  "events": [
+    {
+      "frame": 9985480,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_9985480"
+        }
+      }
+    },
+    {
+      "frame": 20925142,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_20925142"
+        }
+      }
+    },
+    {
+      "frame": 29990227,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 30158100,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 37040854,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_37040854"
+        }
+      }
+    },
+    {
+      "frame": 47448915,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_47448915"
+        }
+      }
+    },
+    {
+      "frame": 57745072,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 57884959,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 102678805,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_102678805"
+        }
+      }
+    }
+  ]
+}

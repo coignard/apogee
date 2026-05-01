@@ -1,0 +1,132 @@
+{
+  "metadata": {
+    "rom_name": "kindzadza",
+    "rom_sha256": "7bed714c5f1975aadf7f47de5b82a6b3a972a6216fd66784187476a86b6b0814",
+    "autorun": false,
+    "sample_rate": 44100,
+    "color_mode": "Color",
+    "is_crt": false
+  },
+  "events": [
+    {
+      "frame": 1207523,
+      "action": {
+        "KeyDown": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 1349707,
+      "action": {
+        "KeyUp": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 1669632,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 1882907,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 6020537,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_6020537"
+        }
+      }
+    },
+    {
+      "frame": 10343012,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_10343012"
+        }
+      }
+    },
+    {
+      "frame": 20495140,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_20495140"
+        }
+      }
+    },
+    {
+      "frame": 21973886,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_21973886"
+        }
+      }
+    },
+    {
+      "frame": 24391054,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_24391054"
+        }
+      }
+    },
+    {
+      "frame": 28343846,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_28343846"
+        }
+      }
+    },
+    {
+      "frame": 33718500,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_33718500"
+        }
+      }
+    },
+    {
+      "frame": 34713810,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_34713810"
+        }
+      }
+    },
+    {
+      "frame": 35566934,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_35566934"
+        }
+      }
+    },
+    {
+      "frame": 36789733,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_36789733"
+        }
+      }
+    },
+    {
+      "frame": 74469199,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kindzadza_frame_74469199"
+        }
+      }
+    }
+  ]
+}

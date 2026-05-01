@@ -1,0 +1,308 @@
+{
+  "metadata": {
+    "rom_name": "dvigalka",
+    "rom_sha256": "737b8a71eea220794180748033dca32e01e06e1ce597dddd51f96788a19e4d48",
+    "autorun": false,
+    "sample_rate": 44100,
+    "color_mode": "Color",
+    "is_crt": false
+  },
+  "events": [
+    {
+      "frame": 1385256,
+      "action": {
+        "KeyDown": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 1527442,
+      "action": {
+        "KeyUp": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 3375871,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 3553600,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 5721950,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_5721950"
+        }
+      }
+    },
+    {
+      "frame": 8601229,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 8814509,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 13542218,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_13542218"
+        }
+      }
+    },
+    {
+      "frame": 15746111,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 15888292,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 20580454,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_20580454"
+        }
+      }
+    },
+    {
+      "frame": 28116350,
+      "action": {
+        "KeyDown": {
+          "key": "Num5"
+        }
+      }
+    },
+    {
+      "frame": 28329631,
+      "action": {
+        "KeyUp": {
+          "key": "Num5"
+        }
+      }
+    },
+    {
+      "frame": 32737419,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_32737419"
+        }
+      }
+    },
+    {
+      "frame": 32808507,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_32808507"
+        }
+      }
+    },
+    {
+      "frame": 33199518,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_33199518"
+        }
+      }
+    },
+    {
+      "frame": 33448346,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_33448346"
+        }
+      }
+    },
+    {
+      "frame": 33839361,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_33839361"
+        }
+      }
+    },
+    {
+      "frame": 33946001,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_33946001"
+        }
+      }
+    },
+    {
+      "frame": 45783039,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_45783039"
+        }
+      }
+    },
+    {
+      "frame": 49373260,
+      "action": {
+        "KeyDown": {
+          "key": "Num6"
+        }
+      }
+    },
+    {
+      "frame": 49515444,
+      "action": {
+        "KeyUp": {
+          "key": "Num6"
+        }
+      }
+    },
+    {
+      "frame": 51719334,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 51897071,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 56873612,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_56873612"
+        }
+      }
+    },
+    {
+      "frame": 59504053,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 59681791,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 64587232,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_64587232"
+        }
+      }
+    },
+    {
+      "frame": 66968859,
+      "action": {
+        "KeyDown": {
+          "key": "Num5"
+        }
+      }
+    },
+    {
+      "frame": 67146588,
+      "action": {
+        "KeyUp": {
+          "key": "Num5"
+        }
+      }
+    },
+    {
+      "frame": 69386026,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_69386026"
+        }
+      }
+    },
+    {
+      "frame": 69705949,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_69705949"
+        }
+      }
+    },
+    {
+      "frame": 69812587,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_69812587"
+        }
+      }
+    },
+    {
+      "frame": 78557064,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_78557064"
+        }
+      }
+    },
+    {
+      "frame": 79303544,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_79303544"
+        }
+      }
+    },
+    {
+      "frame": 80654320,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_80654320"
+        }
+      }
+    },
+    {
+      "frame": 89967544,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_89967544"
+        }
+      }
+    }
+  ]
+}

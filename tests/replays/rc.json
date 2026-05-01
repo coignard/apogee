@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "rom_name": "rc",
+    "rom_sha256": "95e2edd76cf15ef3bf8e22c1e85a1be9691f0be2ac764d21275e1c0594bdadca",
+    "autorun": false,
+    "sample_rate": 44100,
+    "color_mode": "Color",
+    "is_crt": false
+  },
+  "events": [
+    {
+      "frame": 1314170,
+      "action": {
+        "KeyDown": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 1456347,
+      "action": {
+        "KeyUp": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 2451665,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 2558293,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 4264533,
+      "action": {
+        "TakeSnapshot": {
+          "name": "rc_frame_4264533"
+        }
+      }
+    },
+    {
+      "frame": 14857439,
+      "action": {
+        "TakeSnapshot": {
+          "name": "rc_frame_14857439"
+        }
+      }
+    }
+  ]
+}

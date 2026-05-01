@@ -1,0 +1,308 @@
+{
+  "metadata": {
+    "rom_name": "tia2",
+    "rom_sha256": "2f34aa96004ecec170de4e616c2257657d9eee7af9feeb549cf53ebe27e39d1f",
+    "autorun": true,
+    "sample_rate": 44100,
+    "color_mode": "Color",
+    "is_crt": false
+  },
+  "events": [
+    {
+      "frame": 14016014,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_14016014"
+        }
+      }
+    },
+    {
+      "frame": 17048720,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 17223013,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 20499728,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_20499728"
+        }
+      }
+    },
+    {
+      "frame": 25066216,
+      "action": {
+        "KeyDown": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 25275363,
+      "action": {
+        "KeyUp": {
+          "key": "Num0"
+        }
+      }
+    },
+    {
+      "frame": 28586936,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_28586936"
+        }
+      }
+    },
+    {
+      "frame": 30922470,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 31166479,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 36011839,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_36011839"
+        }
+      }
+    },
+    {
+      "frame": 39950867,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 40125157,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 43262438,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_43262438"
+        }
+      }
+    },
+    {
+      "frame": 44726502,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 44897127,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 52177080,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_52177080"
+        }
+      }
+    },
+    {
+      "frame": 55731749,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 55975758,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 60925697,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_60925697"
+        }
+      }
+    },
+    {
+      "frame": 63226364,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 63470379,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 65248164,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_65248164"
+        }
+      }
+    },
+    {
+      "frame": 66572793,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 66747093,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 68455165,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_68455165"
+        }
+      }
+    },
+    {
+      "frame": 69291770,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 69500922,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 73753684,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_73753684"
+        }
+      }
+    },
+    {
+      "frame": 74764582,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 74973734,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 81631739,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_81631739"
+        }
+      }
+    },
+    {
+      "frame": 82956372,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 83200376,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 88568618,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_88568618"
+        }
+      }
+    },
+    {
+      "frame": 89718947,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 89928103,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 96864977,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_96864977"
+        }
+      }
+    }
+  ]
+}
