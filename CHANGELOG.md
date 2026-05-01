@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.1.5
+## 0.1.7
+
+### Fixed
+
+- `port_in` and `port_out` on `Bus` now implement 8080 port address mirroring. The 8-bit port number is duplicated into both bytes of the 16-bit address (e.g. port `0xEC` to address `0xECEC`) and forwarded to `peek` / `poke`, matching the memory-mapped I/O model of the Apogee BK-01 hardware. Previously both methods were no-ops, which silently discarded all port traffic and broke programs that drive the VI53 timer via `OUT` instructions
+
+## 0.1.6
 
 ### Added
 
