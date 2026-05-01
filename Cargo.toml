@@ -22,7 +22,7 @@ clap = { version = "4.6.1", features = ["derive"] }
 cpal = "0.17.3"
 crossbeam-channel = "0.5.15"
 hex = "0.4.3"
-image = "0.25.10"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
 iz80 = "0.4.4"
 pixels = "0.17.1"
 serde = { version = "1.0.228", features = ["derive"] }
