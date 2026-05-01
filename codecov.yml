@@ -1,0 +1,28 @@
+coverage:
+  precision: 1
+  round: down
+  range: 85..100
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+      core:
+        target: auto
+        threshold: 1%
+        paths:
+          - "src/core/"
+          - "core/"
+          - "src/lib.rs"
+          - "lib.rs"
+    patch:
+      default:
+        target: 85%
+        threshold: 1%
+ignore:
+  - "tests"
+  - "dist"
+  - "src/main.rs"
+  - "src/app"
+comment:
+  require_changes: true
