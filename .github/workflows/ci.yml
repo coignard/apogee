@@ -33,6 +33,23 @@ jobs:
         echo "2f34aa96004ecec170de4e616c2257657d9eee7af9feeb549cf53ebe27e39d1f  tests/assets/tia2.rka" >> SHA256SUMS
         sha256sum --check SHA256SUMS
 
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Run doc-tests
+      run: cargo test --doc --verbose
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -69,3 +86,20 @@ jobs:
       with:
         submodules: recursive
     - uses: EmbarkStudios/cargo-deny-action@v2
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+    - name: Generate coverage
+      run: cargo llvm-cov --all-features --workspace --codecov --output-path codecov.json
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v6
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: codecov.json
+        fail_ci_if_error: true
