@@ -1,12 +1,45 @@
 # Changelog
 
+## 0.1.5
+
+### Added
+
+- Debug mode with `--debug` flag exposing hotkeys: F8 (pause/resume), F9 (step one frame while paused), F10 (dump snapshot)
+- Replay recording via `--record` flag (requires `--debug`): key events and snapshot markers serialised to JSON on exit with intermediate saves on each snapshot
+- Replay playback via `--play <file>`: replays recorded input deterministically; keyboard input blocked during playback
+- `ReplayRecorder`, `ReplayPlayer`, `ReplayMetadata`, `ReplayEvent`, `ReplayAction` types in new `core::debug` module
+- `MachineState` struct serialisable to JSON, exposing cycle count, PC, and a SHA-256 hash of RAM
+- `Machine::validate_rka()` extracted as a public static method; called independently before `load_rom` in `main()`
+- `Machine::cycle_count()` and `Machine::state()` accessors
+- `dump_snapshot()` on `App`: writes `<name>.json` (machine state) and `<name>.png` (frame buffer) side by side
+- SHA-256 hashes for bundled assets moved to sidecar `.sha256` files included at compile time via `include_str!`; hardcoded hash strings removed from source
+- `ChecksumMismatch` variant on `MachineError` now carries `expected` and `got` fields for diagnostic output
+- Window resizes to match new video dimensions when `render_frame` reports a resolution change
+- `serde`, `serde-big-array`, `serde_json`, `image`, `assert-json-diff`, `test-generator` dependencies added
+- `Serialize` / `Deserialize` derived on all core chip structs, peripheral structs, `ColorMode`, `Key`, and `ParsedSymbol`; RAM and parsed frame serialised as SHA-256 hashes to keep snapshots compact
+- Debug flags (`--debug`, `--record`, `--play`) hidden from `--help` unless `--debug` is present on the command line
+
+### Changed
+
+- `App::new()` extended with `debug_mode`, `recorder`, `player`, and `rom_name` parameters
+- `App` gains `paused`, `step_frame`, `recorder`, `player`, and `rom_name` fields; `about_to_wait` branches on pause/step state before entering the audio-driven tick loop
+- `ControlFlow::Wait` used while paused (replaces unconditional `Poll`), eliminating busy-spin when emulation is suspended
+- `load_rom` no longer handles ROM disk path inline; `.rom` extension validated in `main()` before the call; error message simplified to a single generic context string
+- `Box::new([0; N])` replaced with `vec![...].into_boxed_slice().try_into().unwrap()` for large stack-allocated arrays (`ram`, `parsed_frame`) to avoid stack overflow on debug builds
+- `autorun` loop rewritten as a `step_by` iterator over `DEFAULT_FRAME_CYCLES` instead of a manual `cycles_done` accumulator
+- `rom_name` and `rom_sha256` derived from the loaded file path; `"monitor"` / `SYSTEM_ROM_HASH` used as defaults when no file is provided
+- `app.fatal_error` taken with `.take()` instead of moved, allowing `App` to remain valid through the `exiting` handler
+- `exiting` handler on `App` saves recorder state on clean exit
+
 ## 0.1.4
 
 ### Added
+
 - `DEFAULT_FRAME_CYCLES` and `MAX_FRAME_CYCLES` compile-time constants derived directly from VG75 and CPU hardware specs; replace all remaining magic cycle and latency numbers
 - `is_raster_running()` accessor on `Kr580Vg75`
 
 ### Changed
+
 - Synchronization model replaced: wall-clock / delta-time loop removed in favour of audio-buffer-driven execution; `machine.run(elapsed_secs, ...)` to `machine.tick(push_sample)` returning a `bool` vblank flag
 - Frame rendering decoupled from the tick callback; `render_frame` closure removed from the machine API — rendering is triggered in the event loop only when `tick()` returns `true`
 - Throttle guard replaced with a hot `ControlFlow::Poll` + `yield_now()` spin against a hardware-derived 1.5-frame audio latency watermark, eliminating OS-sleep wake-up jitter
@@ -18,11 +51,13 @@
 - `pending_cycles` field removed from `Machine`
 
 ### Removed
+
 - Redundant `rfd` dependency
 
 ## 0.1.3
 
 ### Changed
+
 - DMA/CRT pipeline (`Kr580Vg75` + `Kr580Vt57`) refactored from monolithic row-fetch into a true cycle-accurate state machine: `fetch_dma_row` removed, `tick()` split into `tick()` (per-CPU-cycle DMA step) and `tick_char()` (character-clock step); CPU is now halted exactly 4 cycles per byte fetched via HRQ, while the VG75 manages its own internal FIFO delays (7 and 3 cycles) through a dedicated `dma_timer` counter
 - `dma_bytes_left` / `dma_space_counter` fields replaced by `cur_burst_pos`, `dma_timer`, `dma_paused`, and `need_extra_byte` to track per-cycle burst state
 - `next_row()` and `next_frame()` no longer accept `vt57` / `ram` arguments; DMA is driven cycle-by-cycle from the machine loop instead
@@ -34,12 +69,14 @@
 ## 0.1.2
 
 ### Added
+
 - `--force` / `-f` CLI flag: skips RKA validation and loads the file anyway, tolerating inverted address ranges, truncated payloads, and missing checksums
 - SHA-256 integrity check for bundled assets (`apogee.rom`, `sga.bin`) on startup
 - `err_rx` channel on `AudioSystem` for propagating runtime audio stream errors to the main loop
 - `fatal_error` field on `App` for structured fatal error reporting
 
 ### Changed
+
 - `main()` now returns `Result<()>`; all `eprintln!` + `process::exit` replaced with `anyhow` error propagation
 - `App::new()` and `AudioSystem::new()` now return `Result<Self>` instead of being infallible
 - `load_rom` signature extended with `force: bool` parameter and migrated from `Result<(), &'static str>` to `anyhow::Result<()>`
@@ -50,6 +87,7 @@
 ## 0.1.1
 
 ### Added
+
 - `--autorun` / `-a` CLI flag: executes 2,000,000 warm-up cycles before injecting the RKA payload, bypassing manual system monitor interaction
 - Authentic RKA checksum validation replicating the 8080 ADD/ADC algorithm; invalid files are rejected with a descriptive error
 - `memory_map` module in `bus.rs` with symbolic address range constants
@@ -58,6 +96,7 @@
 - Named constants for all previously magic numbers across all chip modules
 
 ### Changed
+
 - Emulation loop is now delta-time driven with a 50 ms spike cap
 - Audio throttle timer resets on wake, eliminating crackling on window move/minimize
 - Halt and normal CPU cycles unified into a single execution path in `machine.rs`
@@ -68,4 +107,5 @@
 ## 0.1.0
 
 ### Added
+
 - Initial commit
