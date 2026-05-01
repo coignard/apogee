@@ -75,6 +75,8 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v6
+          with:
+            submodules: recursive
         - name: Trigger tap update
           run: |
             gh workflow run update-formula.yml \
