@@ -35,6 +35,10 @@ winit = "0.30.13"
 [patch.crates-io]
 iz80 = { path = "iz80" }
 
+[lib]
+name = "apogee_rs"
+path = "src/lib.rs"
+
 [[bin]]
 name = "apogee"
 path = "src/main.rs"
