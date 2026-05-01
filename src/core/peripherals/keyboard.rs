@@ -15,12 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use serde::{Deserialize, Serialize};
+
 const MATRIX_SIZE: usize = 9;
 const MODIFIER_ROW: usize = 8;
 const MODIFIER_PORT_C_MASK: u8 = 0xE0;
 const PORT_C_FIXED_BITS: u8 = 0x0F;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Key {
     Home,
     End,
@@ -165,7 +167,7 @@ impl Key {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct Keyboard {
     pub matrix: [u8; MATRIX_SIZE],
 }

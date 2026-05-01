@@ -16,6 +16,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::kr580vt57::Kr580Vt57;
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 
 pub const STATUS_INT_ENABLE: u8 = 0x40;
 pub const STATUS_INT_REQUEST: u8 = 0x20;
@@ -112,7 +114,7 @@ const CHAR_ATTR_LTEN: [bool; 12] = [
     false, false, false, false, true, false, false, true, true, false, true, false,
 ];
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 enum Vg75Cmd {
     Reset,
     LoadCursor,
@@ -120,7 +122,7 @@ enum Vg75Cmd {
     None,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct ParsedSymbol {
     pub chr: u8,
     pub attrs: u8,
@@ -203,6 +205,45 @@ impl ParsedSymbol {
     }
 }
 
+mod frame_hash_serde {
+    use super::{MAX_CHARS, MAX_ROWS, ParsedSymbol};
+    use serde::{Deserialize, Deserializer, Serializer};
+    use sha2::{Digest, Sha256};
+
+    pub fn serialize<S>(
+        frame: &[[ParsedSymbol; MAX_CHARS]; MAX_ROWS],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut hasher = Sha256::new();
+        for row in frame {
+            for sym in row {
+                hasher.update([sym.chr, sym.attrs]);
+                hasher.update(sym.vsp.to_le_bytes());
+                hasher.update(sym.lten.to_le_bytes());
+            }
+        }
+        let hash = hasher.finalize();
+        serializer.serialize_str(&hex::encode(hash))
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Box<[[ParsedSymbol; MAX_CHARS]; MAX_ROWS]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let _hash = String::deserialize(deserializer)?;
+        Ok(vec![[ParsedSymbol::default(); MAX_CHARS]; MAX_ROWS]
+            .into_boxed_slice()
+            .try_into()
+            .unwrap())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Kr580Vg75 {
     cmd: Vg75Cmd,
     status: u8,
@@ -249,11 +290,14 @@ pub struct Kr580Vg75 {
     attr_gpa1: bool,
     is_blanked_to_end_of_screen: bool,
 
+    #[serde(with = "frame_hash_serde", rename = "parsed_frame_hash")]
     parsed_frame: Box<[[ParsedSymbol; MAX_CHARS]; MAX_ROWS]>,
 
     cpu_inte: bool,
     cur_font_bank: bool,
     prev_row: usize,
+
+    #[serde(with = "BigArray")]
     row_font_banks: [bool; MAX_ROWS],
 
     crt_x: u32,
@@ -317,7 +361,10 @@ impl Kr580Vg75 {
             attr_gpa1: false,
             is_blanked_to_end_of_screen: false,
 
-            parsed_frame: Box::new([[ParsedSymbol::default(); MAX_CHARS]; MAX_ROWS]),
+            parsed_frame: vec![[ParsedSymbol::default(); MAX_CHARS]; MAX_ROWS]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
 
             cpu_inte: false,
             cur_font_bank: false,

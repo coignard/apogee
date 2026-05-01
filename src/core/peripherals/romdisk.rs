@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use serde::Serialize;
+
 const BANK_SELECT_MASK: u8 = 0x80;
 const BANK_INDEX_MASK: u8 = 0x7F;
 
@@ -22,7 +24,9 @@ const ADDR_PORT_B_CLEAR_MASK: usize = !0xFF;
 const ADDR_PORT_C_CLEAR_MASK: usize = !0x7F00;
 const ADDR_PAGE_KEEP_MASK: usize = 0x7FFF;
 
+#[derive(Serialize)]
 pub struct RomDisk {
+    #[serde(skip)]
     data: Vec<u8>,
     cur_addr: usize,
     old_a15: bool,

@@ -15,7 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[derive(Clone, Copy, Default, PartialEq)]
+use serde::Serialize;
+
+#[derive(Clone, Copy, Default, PartialEq, Serialize)]
 pub enum PitRwMode {
     #[default]
     Latch,
@@ -35,7 +37,7 @@ impl PitRwMode {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq, Serialize)]
 pub enum PitPhase {
     #[default]
     Lsb,
@@ -46,7 +48,7 @@ const PIT_MAX_COUNT: u32 = 0x10000;
 const PORT_MASK: u16 = 3;
 const PORT_CWR: u16 = 3;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Serialize)]
 struct TimerChannel {
     mode: u8,
     rw_mode: PitRwMode,
@@ -136,6 +138,7 @@ impl TimerChannel {
     }
 }
 
+#[derive(Serialize)]
 pub struct Kr580Vi53 {
     channels: [TimerChannel; 3],
 }

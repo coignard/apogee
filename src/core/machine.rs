@@ -16,6 +16,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use iz80::Cpu;
+use serde::Serialize;
 use std::fmt;
 
 use super::audio::AudioMixer;
@@ -32,7 +33,6 @@ const TAPE_SYNC_BYTE: u8 = 0xE6;
 
 const AUTORUN_DELAY_CYCLES: u32 = 2_000_000;
 const RKA_HEADER_SIZE: usize = 4;
-const RKA_TAIL_SIZE: usize = 3;
 
 pub const DEFAULT_CHARS_PER_ROW: u32 = 78;
 pub const DEFAULT_HR_CHARS: u32 = 18;
@@ -65,7 +65,7 @@ pub enum MachineError {
     InvalidAddressRange,
     FileTooShort,
     ChecksumMissing,
-    ChecksumMismatch,
+    ChecksumMismatch { expected: u16, got: u16 },
 }
 
 impl fmt::Display for MachineError {
@@ -75,18 +75,33 @@ impl fmt::Display for MachineError {
             Self::InvalidAddressRange => write!(f, "start address is greater than end address"),
             Self::FileTooShort => write!(f, "file is shorter than the expected data length"),
             Self::ChecksumMissing => write!(f, "checksum block missing"),
-            Self::ChecksumMismatch => write!(f, "checksum mismatch"),
+            Self::ChecksumMismatch { expected, got } => {
+                write!(
+                    f,
+                    "checksum mismatch: expected={:04X}, got={:04X}",
+                    expected, got
+                )
+            }
         }
     }
 }
 
 impl std::error::Error for MachineError {}
 
+#[derive(Serialize)]
+pub struct MachineState<'a> {
+    #[serde(rename = "frame")]
+    pub cycle: u64,
+    pub pc: u16,
+    pub bus: &'a Bus,
+}
+
 pub struct Machine {
     cpu: Cpu,
     bus: Bus,
     audio_mixer: AudioMixer,
     cclk_acc: u32,
+    total_cycles: u64,
 }
 
 impl Machine {
@@ -99,12 +114,95 @@ impl Machine {
             bus: Bus::new(system_rom),
             audio_mixer: AudioMixer::new(sample_rate, MASTER_CLOCK_HZ, CPU_DIVIDER),
             cclk_acc: 0,
+            total_cycles: 0,
         }
     }
 
     #[inline]
     pub fn vg75(&self) -> &Kr580Vg75 {
         &self.bus.vg75
+    }
+
+    #[inline]
+    pub fn cycle_count(&self) -> u64 {
+        self.total_cycles
+    }
+
+    pub fn state(&self) -> MachineState<'_> {
+        MachineState {
+            cycle: self.total_cycles,
+            pc: self.cpu.immutable_registers().pc(),
+            bus: &self.bus,
+        }
+    }
+
+    pub fn validate_rka(payload: &[u8], force: bool) -> Result<(), MachineError> {
+        if payload.len() < RKA_HEADER_SIZE {
+            return Err(MachineError::InvalidRkaLength);
+        }
+
+        let (header, payload_data) = payload.split_at(RKA_HEADER_SIZE);
+        let start_addr = u16::from_be_bytes(header[0..2].try_into().unwrap());
+        let end_addr = u16::from_be_bytes(header[2..4].try_into().unwrap());
+
+        if start_addr > end_addr && !force {
+            return Err(MachineError::InvalidAddressRange);
+        }
+
+        let expected_len = if start_addr <= end_addr {
+            (end_addr - start_addr) as usize + 1
+        } else {
+            payload_data.len()
+        };
+
+        if payload_data.len() < expected_len && !force {
+            return Err(MachineError::FileTooShort);
+        }
+
+        let len = expected_len.min(payload_data.len());
+        let (data, tail) = payload_data.split_at(len);
+
+        if !force {
+            let (mut cs_hi_excluding_last, mut cs_lo) = (0u8, 0u8);
+            let mut cs_hi_including_last = 0u8;
+
+            if let Some((&last_byte, body)) = data.split_last() {
+                for &b in body {
+                    let (new_lo, carry) = cs_lo.overflowing_add(b);
+                    cs_lo = new_lo;
+                    cs_hi_excluding_last = cs_hi_excluding_last
+                        .wrapping_add(b)
+                        .wrapping_add(u8::from(carry));
+                }
+
+                let (final_lo, carry) = cs_lo.overflowing_add(last_byte);
+                cs_hi_including_last = cs_hi_excluding_last
+                    .wrapping_add(last_byte)
+                    .wrapping_add(u8::from(carry));
+                cs_lo = final_lo;
+            }
+
+            let checksum_excluding_last = u16::from_be_bytes([cs_hi_excluding_last, cs_lo]);
+            let checksum_including_last = u16::from_be_bytes([cs_hi_including_last, cs_lo]);
+
+            let stored_cs = tail
+                .windows(3)
+                .find(|w| w[0] == TAPE_SYNC_BYTE)
+                .map(|w| &w[1..3])
+                .unwrap_or_else(|| &tail[tail.len().saturating_sub(2)..])
+                .try_into()
+                .map(u16::from_be_bytes)
+                .map_err(|_| MachineError::ChecksumMissing)?;
+
+            if stored_cs != checksum_excluding_last && stored_cs != checksum_including_last {
+                return Err(MachineError::ChecksumMismatch {
+                    expected: checksum_excluding_last,
+                    got: stored_cs,
+                });
+            }
+        }
+
+        Ok(())
     }
 
     pub fn load_rom(
@@ -114,87 +212,39 @@ impl Machine {
         autorun: bool,
         force: bool,
     ) -> Result<(), MachineError> {
-        if is_rka {
-            let offset = if payload.first() == Some(&TAPE_SYNC_BYTE) {
-                1
-            } else {
-                0
-            };
-
-            if payload.len() < offset + RKA_HEADER_SIZE {
-                return Err(MachineError::InvalidRkaLength);
-            }
-
-            let start_addr = u16::from_be_bytes([payload[offset], payload[offset + 1]]);
-            let end_addr = u16::from_be_bytes([payload[offset + 2], payload[offset + 3]]);
-
-            if start_addr > end_addr && !force {
-                return Err(MachineError::InvalidAddressRange);
-            }
-
-            let data_start = offset + RKA_HEADER_SIZE;
-
-            let intended_len = if start_addr <= end_addr {
-                (end_addr as usize - start_addr as usize) + 1
-            } else {
-                payload.len() - data_start
-            };
-
-            let len = if payload.len() < data_start + intended_len {
-                if force {
-                    payload.len() - data_start
-                } else {
-                    return Err(MachineError::FileTooShort);
-                }
-            } else {
-                intended_len
-            };
-
-            let data = &payload[data_start..data_start + len];
-
-            if !force {
-                let (mut cs_hi, mut cs_lo) = (0u8, 0u8);
-                for &b in data {
-                    let (new_lo, carry) = cs_lo.overflowing_add(b);
-                    cs_lo = new_lo;
-                    cs_hi = cs_hi.wrapping_add(b).wrapping_add(u8::from(carry));
-                }
-
-                let tail = &payload[data_start + len..];
-
-                let Some(sync_idx) = tail.iter().position(|&b| b == TAPE_SYNC_BYTE) else {
-                    return Err(MachineError::ChecksumMissing);
-                };
-
-                if tail.len() < sync_idx + RKA_TAIL_SIZE {
-                    return Err(MachineError::ChecksumMissing);
-                }
-
-                if cs_hi != tail[sync_idx + 1] || cs_lo != tail[sync_idx + 2] {
-                    return Err(MachineError::ChecksumMismatch);
-                }
-            }
-
-            if autorun {
-                let mut cycles_done = 0;
-                while cycles_done < AUTORUN_DELAY_CYCLES {
-                    self.tick(|_| {});
-                    cycles_done += DEFAULT_FRAME_CYCLES;
-                }
-            }
-
-            for (i, &b) in data.iter().enumerate() {
-                let write_addr = start_addr.wrapping_add(i as u16) as usize;
-                if write_addr < self.bus.ram.len() {
-                    self.bus.ram[write_addr] = b;
-                }
-            }
-
-            if autorun {
-                self.cpu.registers().set_pc(start_addr);
-            }
-        } else {
+        if !is_rka {
             self.bus.romdisk.load(payload);
+            return Ok(());
+        }
+
+        Self::validate_rka(payload, force)?;
+
+        let (header, payload_data) = payload.split_at(RKA_HEADER_SIZE);
+        let start_addr = u16::from_be_bytes(header[0..2].try_into().unwrap());
+        let end_addr = u16::from_be_bytes(header[2..4].try_into().unwrap());
+
+        let expected_len = if start_addr <= end_addr {
+            (end_addr - start_addr) as usize + 1
+        } else {
+            payload_data.len()
+        };
+
+        let len = expected_len.min(payload_data.len());
+        let (data, _tail) = payload_data.split_at(len);
+
+        if autorun {
+            for _ in (0..AUTORUN_DELAY_CYCLES).step_by(DEFAULT_FRAME_CYCLES as usize) {
+                self.tick(|_| {});
+            }
+        }
+
+        for (i, &b) in data.iter().enumerate() {
+            let addr = start_addr.wrapping_add(i as u16) as usize;
+            self.bus.ram[addr] = b;
+        }
+
+        if autorun {
+            self.cpu.registers().set_pc(start_addr);
         }
 
         Ok(())
@@ -228,6 +278,7 @@ impl Machine {
             };
 
             frame_cycles += elapsed_cycles;
+            self.total_cycles += elapsed_cycles as u64;
 
             for _ in 0..elapsed_cycles {
                 self.bus.vg75.tick(&mut self.bus.vt57, &self.bus.ram);

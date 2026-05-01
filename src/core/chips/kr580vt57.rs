@@ -15,7 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[derive(Clone, Copy, PartialEq, Default)]
+use serde::Serialize;
+
+#[derive(Clone, Copy, PartialEq, Default, Serialize)]
 pub enum BytePhase {
     #[default]
     Lsb,
@@ -43,6 +45,7 @@ const MODE_AUTO_LOAD: u8 = 0x80;
 const COUNT_MASK: u16 = 0x3FFF;
 const COUNT_MODE_PRESERVE_MASK: u16 = 0xC000;
 
+#[derive(Serialize)]
 pub struct Kr580Vt57 {
     enabled: bool,
     mode: u8,

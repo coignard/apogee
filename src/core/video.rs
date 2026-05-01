@@ -16,6 +16,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::core::chips::kr580vg75::Kr580Vg75;
+use serde::{Deserialize, Serialize};
 
 pub const CHAR_WIDTH: usize = 6;
 const DEFAULT_CHARS_PER_ROW: usize = 78;
@@ -23,7 +24,7 @@ const DEFAULT_ROWS_PER_SCREEN: usize = 30;
 const DEFAULT_LINES_PER_ROW: usize = 10;
 const FONT_ALT_BANK_OFFSET: usize = 128;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColorMode {
     Color,
     Grayscale,

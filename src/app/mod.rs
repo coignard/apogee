@@ -25,12 +25,13 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::keyboard::PhysicalKey;
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
 
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::map_keycode;
 
+use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::Machine;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
@@ -40,19 +41,57 @@ pub struct App {
     audio: AudioSystem,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+
+    pub debug_mode: bool,
+    pub paused: bool,
+    pub step_frame: bool,
+    pub recorder: Option<ReplayRecorder>,
+    pub player: Option<ReplayPlayer>,
+    pub rom_name: String,
+
     pub fatal_error: Option<anyhow::Error>,
 }
 
 impl App {
-    pub fn new(machine: Machine, video: VideoRenderer, audio: AudioSystem) -> Self {
+    pub fn new(
+        machine: Machine,
+        video: VideoRenderer,
+        audio: AudioSystem,
+        debug_mode: bool,
+        recorder: Option<ReplayRecorder>,
+        player: Option<ReplayPlayer>,
+        rom_name: String,
+    ) -> Self {
         Self {
             machine,
             video,
             audio,
             window: None,
             pixels: None,
+            debug_mode,
+            paused: false,
+            step_frame: false,
+            recorder,
+            player,
+            rom_name,
             fatal_error: None,
         }
+    }
+
+    fn dump_snapshot(&self, name: &str) {
+        let json_name = format!("{}.json", name);
+        let png_name = format!("{}.png", name);
+
+        if let Ok(file) = std::fs::File::create(&json_name) {
+            let writer = std::io::BufWriter::new(file);
+            let _ = serde_json::to_writer_pretty(writer, &self.machine.state());
+        }
+
+        let w = self.video.width();
+        let h = self.video.height();
+        let buffer = self.video.frame_buffer();
+
+        let _ = image::save_buffer(&png_name, buffer, w, h, image::ExtendedColorType::Rgba8);
     }
 }
 
@@ -110,12 +149,43 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                let pressed = event.state == ElementState::Pressed;
+
                 if let PhysicalKey::Code(key_code) = event.physical_key
                     && !event.repeat
-                    && let Some(key) = map_keycode(key_code)
                 {
-                    let pressed = event.state == ElementState::Pressed;
-                    self.machine.update_key(key, pressed);
+                    if self.debug_mode {
+                        match key_code {
+                            KeyCode::F8 if pressed => {
+                                self.paused = !self.paused;
+                            }
+                            KeyCode::F9 if pressed && self.paused => {
+                                self.step_frame = true;
+                            }
+                            KeyCode::F10 if pressed => {
+                                let frame = self.machine.cycle_count();
+                                let snap_name = format!("{}_frame_{}", self.rom_name, frame);
+
+                                self.dump_snapshot(&snap_name);
+
+                                if let Some(rec) = &mut self.recorder {
+                                    rec.push_snapshot(frame, snap_name.clone());
+                                    let _ = rec.save(&format!("{}.json", self.rom_name));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if let Some(key) = map_keycode(key_code)
+                        && self.player.is_none()
+                    {
+                        self.machine.update_key(key, pressed);
+
+                        if let Some(rec) = &mut self.recorder {
+                            rec.push_key(self.machine.cycle_count(), key, pressed);
+                        }
+                    }
                 }
             }
             WindowEvent::RedrawRequested => {
@@ -142,16 +212,8 @@ impl ApplicationHandler for App {
             return;
         }
 
-        let cpu_freq =
-            apogee_rs::core::machine::MASTER_CLOCK_HZ / apogee_rs::core::machine::CPU_DIVIDER;
-        let samples_per_frame = (self.audio.sample_rate as u64
-            * apogee_rs::core::machine::DEFAULT_FRAME_CYCLES as u64)
-            / cpu_freq as u64;
-        let latency_samples = ((samples_per_frame * 3) / 2) as usize;
-
-        if self.audio.tx.len() >= latency_samples {
-            event_loop.set_control_flow(ControlFlow::Poll);
-            std::thread::yield_now();
+        if self.paused && !self.step_frame {
+            event_loop.set_control_flow(ControlFlow::Wait);
             return;
         }
 
@@ -162,20 +224,54 @@ impl ApplicationHandler for App {
         let mut audio_alive = true;
         let tx = &self.audio.tx;
 
-        while tx.len() < latency_samples && audio_alive {
-            let vblank_occurred = self.machine.tick(|sample| match tx.try_send(sample) {
-                Ok(_) => {}
-                Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
-                    audio_alive = false;
-                }
-                Err(crossbeam_channel::TrySendError::Full(_)) => {}
-            });
+        let cpu_freq =
+            apogee_rs::core::machine::MASTER_CLOCK_HZ / apogee_rs::core::machine::CPU_DIVIDER;
+        let samples_per_frame = (self.audio.sample_rate as u64
+            * apogee_rs::core::machine::DEFAULT_FRAME_CYCLES as u64)
+            / cpu_freq as u64;
+        let latency_samples = ((samples_per_frame * 3) / 2) as usize;
 
-            if vblank_occurred {
-                if self.video.render_frame(self.machine.vg75()) {
-                    size_changed = true;
+        if self.step_frame {
+            let mut vblank_occurred = false;
+            while !vblank_occurred {
+                if let Some(player) = &mut self.player {
+                    let _ = player.apply_pending_events(&mut self.machine);
                 }
-                frame_ready_for_render = true;
+
+                vblank_occurred = self.machine.tick(|sample| {
+                    let _ = tx.try_send(sample);
+                });
+            }
+            if self.video.render_frame(self.machine.vg75()) {
+                size_changed = true;
+            }
+            frame_ready_for_render = true;
+            self.step_frame = false;
+        } else {
+            if tx.len() >= latency_samples {
+                std::thread::yield_now();
+                return;
+            }
+
+            while tx.len() < latency_samples && audio_alive {
+                if let Some(player) = &mut self.player {
+                    let _ = player.apply_pending_events(&mut self.machine);
+                }
+
+                let vblank_occurred = self.machine.tick(|sample| match tx.try_send(sample) {
+                    Ok(_) => {}
+                    Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
+                        audio_alive = false;
+                    }
+                    Err(crossbeam_channel::TrySendError::Full(_)) => {}
+                });
+
+                if vblank_occurred {
+                    if self.video.render_frame(self.machine.vg75()) {
+                        size_changed = true;
+                    }
+                    frame_ready_for_render = true;
+                }
             }
         }
 
@@ -200,9 +296,25 @@ impl ApplicationHandler for App {
                 }
             }
 
-            if let Some(w) = &self.window {
-                w.request_redraw();
+            if let Some(window) = &self.window {
+                if size_changed {
+                    let w = self.video.width() as f64 * 2.0;
+                    let h = self.video.height() as f64 * 2.0;
+                    let _ = window.request_inner_size(LogicalSize::new(w, h));
+                }
+                window.request_redraw();
             }
+        }
+    }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        let Some(rec) = &self.recorder else { return };
+
+        let filename = format!("{}.json", self.rom_name);
+
+        if let Err(err) = rec.save(&filename) {
+            self.fatal_error
+                .get_or_insert_with(|| err.context(format!("Failed to save replay to {filename}")));
         }
     }
 }

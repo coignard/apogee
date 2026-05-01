@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use serde::Serialize;
+
 const PORT_MASK: u16 = 3;
 const PORT_A: u16 = 0;
 const PORT_B: u16 = 1;
@@ -33,7 +35,7 @@ const BSR_VAL_MASK: u8 = 0x01;
 
 const TAPE_OUT_BIT_MASK: u8 = 0x01;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct Kr580Vv55a {
     control: u8,
     pub port_a_out: u8,

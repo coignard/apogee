@@ -16,6 +16,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use iz80::Machine;
+use serde::Serialize;
+use sha2::{Digest, Sha256};
 
 use super::chips::kr580vg75::Kr580Vg75;
 use super::chips::kr580vi53::Kr580Vi53;
@@ -39,8 +41,19 @@ pub mod memory_map {
     pub const DMA_ROM_END: u16 = 0xFFFF;
 }
 
+fn serialize_ram_hash<S: serde::Serializer>(
+    ram: &[u8; 0x10000],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let hash = Sha256::digest(ram);
+    serializer.serialize_str(&hex::encode(hash))
+}
+
+#[derive(Serialize)]
 pub struct Bus {
+    #[serde(serialize_with = "serialize_ram_hash", rename = "ram_hash")]
     pub(crate) ram: Box<[u8; 0x10000]>,
+    #[serde(skip)]
     pub(crate) system_rom: Vec<u8>,
 
     pub(crate) vi53: Kr580Vi53,
@@ -57,7 +70,7 @@ pub struct Bus {
 impl Bus {
     pub fn new(system_rom: Vec<u8>) -> Self {
         Self {
-            ram: Box::new([0; 0x10000]),
+            ram: vec![0; 0x10000].into_boxed_slice().try_into().unwrap(),
             system_rom,
             vi53: Kr580Vi53::new(),
             vt57: Kr580Vt57::new(),
