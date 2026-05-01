@@ -1,0 +1,10 @@
+Credits
+=======
+
+Victor A. Pykhonin
+ - Helped debug checksums and vi53.
+ - The emu80 source code was the main reference for the Apogee BK-01.
+
+Kakos Nonos
+ - Answered many questions and shared his Apogee BK-01 programs,
+   which are used in the test suite.
