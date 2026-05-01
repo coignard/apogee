@@ -125,9 +125,17 @@ impl Machine for Bus {
         }
     }
 
-    fn port_in(&mut self, _port: u16) -> u8 {
-        0xFF
+    #[inline]
+    fn port_in(&mut self, port: u16) -> u8 {
+        let lo = port as u8;
+        let addr = u16::from_le_bytes([lo, lo]);
+        self.peek(addr)
     }
 
-    fn port_out(&mut self, _port: u16, _val: u8) {}
+    #[inline]
+    fn port_out(&mut self, port: u16, val: u8) {
+        let lo = port as u8;
+        let addr = u16::from_le_bytes([lo, lo]);
+        self.poke(addr, val);
+    }
 }
