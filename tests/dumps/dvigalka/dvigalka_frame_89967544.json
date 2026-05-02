@@ -218,10 +218,6 @@
         255
       ]
     },
-    "romdisk": {
-      "cur_addr": 0,
-      "old_a15": false,
-      "mask": 0
-    }
+    "user_slot": "None"
   }
 }
