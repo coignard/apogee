@@ -40,13 +40,22 @@ use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_H
 use apogee_rs::core::peripherals::keyboard::Key;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
-const MIDI_CHANNEL_CAPACITY: usize = 4096;
+const MIDI_STATUS_NOTE_OFF: u8 = 0x80;
+const MIDI_STATUS_NOTE_ON: u8 = 0x90;
 const MIDI_STATUS_CONTROL_CHANGE: u8 = 0xB0;
+const MIDI_STATUS_MASK: u8 = 0xF0;
+const MIDI_CHANNEL_MASK: u8 = 0x0F;
+const MIDI_NOTE_MASK: u8 = 0x7F;
 const MIDI_CC_ALL_SOUND_OFF: u8 = 120;
 const MIDI_CC_ALL_NOTES_OFF: u8 = 123;
 const MIDI_CHANNELS_COUNT: u8 = 16;
+const MIDI_VOICE_MSG_LEN: usize = 3;
+const MIDI_SYNC_LAG_FRAMES: f64 = 3.0;
 
 const FRAME_CHANNEL_CAPACITY: usize = 2;
+const AUDIO_LATENCY_FRAMES_NUMER: u64 = 3;
+const AUDIO_LATENCY_FRAMES_DENOM: u64 = 2;
+const WINDOW_SCALE: f64 = 2.0;
 
 struct EmulationFrame {
     width: u32,
@@ -112,46 +121,51 @@ impl App {
 
         let cpu_freq = MASTER_CLOCK_HZ as f64 / CPU_DIVIDER as f64;
         let frame_duration_secs = DEFAULT_FRAME_CYCLES as f64 / cpu_freq;
-        let sync_lag_threshold = Duration::from_secs_f64(frame_duration_secs * 3.0);
+        let sync_lag_threshold = Duration::from_secs_f64(frame_duration_secs * MIDI_SYNC_LAG_FRAMES);
 
-        let midi_tx = config.midi_out.map(|mut midi_conn| {
-            let (tx, rx) = crossbeam_channel::bounded::<(Vec<u8>, u64)>(MIDI_CHANNEL_CAPACITY);
-            std::thread::spawn(move || {
-                let sleeper = SpinSleeper::default();
-                let mut anchor: Option<(Instant, u64)> = None;
+        let (midi_tx, midi_thread) = match config.midi_out {
+            Some(mut midi_conn) => {
+                let (tx, rx) = crossbeam_channel::unbounded::<(Vec<u8>, u64)>();
+                let handle = std::thread::Builder::new()
+                    .name("midi".into())
+                    .spawn(move || {
+                        let sleeper = SpinSleeper::default();
+                        let mut anchor: Option<(Instant, u64)> = None;
+                        let mut active_notes = [0u128; MIDI_CHANNELS_COUNT as usize];
 
-                while let Ok((msg, target_cycle)) = rx.recv() {
-                    let now = Instant::now();
-                    let (anchor_time, anchor_cycle) = *anchor.get_or_insert((now, target_cycle));
+                        while let Ok((msg, target_cycle)) = rx.recv() {
+                            let now = Instant::now();
+                            let (anchor_time, anchor_cycle) =
+                                *anchor.get_or_insert((now, target_cycle));
 
-                    let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
-                    let target_time =
-                        anchor_time + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
+                            let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
+                            let target_time = anchor_time
+                                + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
 
-                    if target_time > now {
-                        sleeper.sleep_until(target_time);
-                    } else if now.duration_since(target_time) > sync_lag_threshold {
-                        anchor = Some((now, target_cycle));
-                    }
+                            if target_time > now {
+                                sleeper.sleep_until(target_time);
+                                track_note(&msg, &mut active_notes);
+                                let _ = midi_conn.send(&msg);
+                            } else if now.duration_since(target_time) > sync_lag_threshold {
+                                track_note(&msg, &mut active_notes);
+                                while let Ok((stale, _)) = rx.try_recv() {
+                                    track_note(&stale, &mut active_notes);
+                                }
+                                silence_active_notes(&mut active_notes, &mut midi_conn);
+                                anchor = None;
+                            } else {
+                                track_note(&msg, &mut active_notes);
+                                let _ = midi_conn.send(&msg);
+                            }
+                        }
 
-                    let _ = midi_conn.send(&msg);
-                }
-
-                for channel in 0..MIDI_CHANNELS_COUNT {
-                    let _ = midi_conn.send(&[
-                        MIDI_STATUS_CONTROL_CHANGE | channel,
-                        MIDI_CC_ALL_NOTES_OFF,
-                        0,
-                    ]);
-                    let _ = midi_conn.send(&[
-                        MIDI_STATUS_CONTROL_CHANGE | channel,
-                        MIDI_CC_ALL_SOUND_OFF,
-                        0,
-                    ]);
-                }
-            });
-            tx
-        });
+                        silence_active_notes(&mut active_notes, &mut midi_conn);
+                    })
+                    .expect("Failed to spawn MIDI thread");
+                (Some(tx), Some(handle))
+            }
+            None => (None, None),
+        };
 
         let (cmd_tx, cmd_rx) = crossbeam_channel::unbounded::<EmulationCommand>();
         let (frame_tx, frame_rx) =
@@ -171,6 +185,7 @@ impl App {
                     audio_tx,
                     sample_rate,
                     midi_tx,
+                    midi_thread,
                     config.recorder,
                     config.player,
                     cmd_rx,
@@ -216,7 +231,10 @@ impl ApplicationHandler for App {
         let width = self.initial_width;
         let height = self.initial_height;
 
-        let size = LogicalSize::new((width * 2) as f64, (height * 2) as f64);
+        let size = LogicalSize::new(
+            f64::from(width) * WINDOW_SCALE,
+            f64::from(height) * WINDOW_SCALE,
+        );
 
         let window = Arc::new(
             event_loop
@@ -350,8 +368,8 @@ impl ApplicationHandler for App {
 
             if let Some(window) = &self.window {
                 if size_changed {
-                    let w = frame.width as f64 * 2.0;
-                    let h = frame.height as f64 * 2.0;
+                    let w = f64::from(frame.width) * WINDOW_SCALE;
+                    let h = f64::from(frame.height) * WINDOW_SCALE;
                     let _ = window.request_inner_size(LogicalSize::new(w, h));
                 }
                 window.request_redraw();
@@ -380,118 +398,129 @@ fn run_emulation(
     audio_tx: Sender<f32>,
     sample_rate: u32,
     midi_tx: Option<Sender<(Vec<u8>, u64)>>,
+    midi_thread: Option<JoinHandle<()>>,
     mut recorder: Option<ReplayRecorder>,
     mut player: Option<ReplayPlayer>,
     cmd_rx: Receiver<EmulationCommand>,
     frame_tx: Sender<EmulationFrame>,
     emu_err_tx: Sender<EmulationError>,
 ) {
-    let mut midi_stream = midly::stream::MidiStream::new();
-    let mut midi_encode_buf = Vec::with_capacity(3);
+    let mut emulate = |midi_tx: &Option<Sender<(Vec<u8>, u64)>>| {
+        let mut midi_stream = midly::stream::MidiStream::new();
+        let mut midi_encode_buf = Vec::with_capacity(3);
 
-    let cpu_freq = MASTER_CLOCK_HZ / CPU_DIVIDER;
-    let samples_per_frame = (sample_rate as u64 * DEFAULT_FRAME_CYCLES as u64) / cpu_freq as u64;
-    let latency_samples = ((samples_per_frame * 3) / 2) as usize;
+        let cpu_freq = MASTER_CLOCK_HZ / CPU_DIVIDER;
+        let samples_per_frame =
+            (sample_rate as u64 * DEFAULT_FRAME_CYCLES as u64) / cpu_freq as u64;
+        let latency_samples =
+            ((samples_per_frame * AUDIO_LATENCY_FRAMES_NUMER) / AUDIO_LATENCY_FRAMES_DENOM) as usize;
 
-    let mut paused = false;
-    let mut step_frame = false;
+        let mut paused = false;
+        let mut step_frame = false;
 
-    loop {
         loop {
-            let cmd = if paused && !step_frame {
-                match cmd_rx.recv() {
-                    Ok(cmd) => cmd,
-                    Err(_) => return,
-                }
-            } else {
-                match cmd_rx.try_recv() {
-                    Ok(cmd) => cmd,
-                    Err(crossbeam_channel::TryRecvError::Empty) => break,
-                    Err(crossbeam_channel::TryRecvError::Disconnected) => return,
-                }
-            };
+            loop {
+                let cmd = if paused && !step_frame {
+                    match cmd_rx.recv() {
+                        Ok(cmd) => cmd,
+                        Err(_) => return,
+                    }
+                } else {
+                    match cmd_rx.try_recv() {
+                        Ok(cmd) => cmd,
+                        Err(crossbeam_channel::TryRecvError::Empty) => break,
+                        Err(crossbeam_channel::TryRecvError::Disconnected) => return,
+                    }
+                };
 
-            match cmd {
-                EmulationCommand::KeyEvent { key, pressed } => {
-                    machine.update_key(key, pressed);
-                    if let Some(rec) = &mut recorder {
-                        rec.push_key(machine.cycle_count(), key, pressed);
+                match cmd {
+                    EmulationCommand::KeyEvent { key, pressed } => {
+                        machine.update_key(key, pressed);
+                        if let Some(rec) = &mut recorder {
+                            rec.push_key(machine.cycle_count(), key, pressed);
+                        }
                     }
-                }
-                EmulationCommand::TogglePause => {
-                    paused = !paused;
-                }
-                EmulationCommand::StepFrame => {
-                    step_frame = true;
-                }
-                EmulationCommand::DumpSnapshot { rom_name } => {
-                    let frame = machine.cycle_count();
-                    let snap_name = format!("{}_frame_{}", rom_name, frame);
-                    dump_snapshot(&machine, &video, &snap_name);
+                    EmulationCommand::TogglePause => {
+                        paused = !paused;
+                    }
+                    EmulationCommand::StepFrame => {
+                        step_frame = true;
+                    }
+                    EmulationCommand::DumpSnapshot { rom_name } => {
+                        let frame = machine.cycle_count();
+                        let snap_name = format!("{}_frame_{}", rom_name, frame);
+                        dump_snapshot(&machine, &video, &snap_name);
 
-                    if let Some(rec) = &mut recorder {
-                        rec.push_snapshot(frame, snap_name);
+                        if let Some(rec) = &mut recorder {
+                            rec.push_snapshot(frame, snap_name);
+                        }
                     }
-                }
-                EmulationCommand::SaveReplay { rom_name } => {
-                    if let Some(rec) = &recorder {
-                        let _ = rec.save(&format!("{}.json", rom_name));
+                    EmulationCommand::SaveReplay { rom_name } => {
+                        if let Some(rec) = &recorder {
+                            let _ = rec.save(&format!("{}.json", rom_name));
+                        }
                     }
+                    EmulationCommand::Quit => return,
                 }
-                EmulationCommand::Quit => return,
             }
-        }
 
-        if step_frame {
-            let mut vblank_occurred = false;
-            while !vblank_occurred {
+            if step_frame {
+                let mut vblank_occurred = false;
+                while !vblank_occurred {
+                    match emu_cycle(
+                        &mut machine,
+                        &audio_tx,
+                        midi_tx,
+                        &mut midi_stream,
+                        &mut midi_encode_buf,
+                        &mut player,
+                    ) {
+                        Ok(v) => vblank_occurred = v,
+                        Err(()) => {
+                            let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
+                            return;
+                        }
+                    }
+                }
+                video.render_frame(machine.vg75());
+                send_frame(&video, &frame_tx);
+                step_frame = false;
+                continue;
+            }
+
+            if audio_tx.len() >= latency_samples {
+                std::thread::yield_now();
+                continue;
+            }
+
+            while audio_tx.len() < latency_samples {
                 match emu_cycle(
                     &mut machine,
                     &audio_tx,
-                    &midi_tx,
+                    midi_tx,
                     &mut midi_stream,
                     &mut midi_encode_buf,
                     &mut player,
                 ) {
-                    Ok(v) => vblank_occurred = v,
+                    Ok(vblank_occurred) => {
+                        if vblank_occurred {
+                            video.render_frame(machine.vg75());
+                            send_frame(&video, &frame_tx);
+                        }
+                    }
                     Err(()) => {
                         let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
                         return;
                     }
                 }
             }
-            video.render_frame(machine.vg75());
-            send_frame(&video, &frame_tx);
-            step_frame = false;
-            continue;
         }
+    };
 
-        if audio_tx.len() >= latency_samples {
-            std::thread::yield_now();
-            continue;
-        }
-
-        while audio_tx.len() < latency_samples {
-            match emu_cycle(
-                &mut machine,
-                &audio_tx,
-                &midi_tx,
-                &mut midi_stream,
-                &mut midi_encode_buf,
-                &mut player,
-            ) {
-                Ok(vblank_occurred) => {
-                    if vblank_occurred {
-                        video.render_frame(machine.vg75());
-                        send_frame(&video, &frame_tx);
-                    }
-                }
-                Err(()) => {
-                    let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
-                    return;
-                }
-            }
-        }
+    emulate(&midi_tx);
+    drop(midi_tx);
+    if let Some(handle) = midi_thread {
+        let _ = handle.join();
     }
 }
 
@@ -521,7 +550,7 @@ fn emu_cycle(
                 midi_stream.feed(&[byte], |live_event| {
                     midi_encode_buf.clear();
                     if live_event.write_std(&mut *midi_encode_buf).is_ok() {
-                        let _ = tx.try_send((midi_encode_buf.clone(), cycle));
+                        let _ = tx.send((midi_encode_buf.clone(), cycle));
                     }
                 });
             }
@@ -561,4 +590,43 @@ fn dump_snapshot(machine: &Machine, video: &VideoRenderer, name: &str) {
     let buffer = video.frame_buffer();
 
     let _ = image::save_buffer(&png_name, buffer, w, h, image::ExtendedColorType::Rgba8);
+}
+
+fn track_note(msg: &[u8], active_notes: &mut [u128; MIDI_CHANNELS_COUNT as usize]) {
+    if msg.len() >= MIDI_VOICE_MSG_LEN {
+        let status = msg[0] & MIDI_STATUS_MASK;
+        let ch = (msg[0] & MIDI_CHANNEL_MASK) as usize;
+        let note = msg[1] & MIDI_NOTE_MASK;
+
+        match status {
+            MIDI_STATUS_NOTE_ON if msg[2] > 0 => active_notes[ch] |= 1u128 << note,
+            MIDI_STATUS_NOTE_OFF | MIDI_STATUS_NOTE_ON => active_notes[ch] &= !(1u128 << note),
+            _ => {}
+        }
+    }
+}
+
+fn silence_active_notes(
+    active_notes: &mut [u128; MIDI_CHANNELS_COUNT as usize],
+    midi_conn: &mut midir::MidiOutputConnection,
+) {
+    for ch in 0..MIDI_CHANNELS_COUNT {
+        let mut bits = active_notes[ch as usize];
+        while bits != 0 {
+            let note = bits.trailing_zeros() as u8;
+            let _ = midi_conn.send(&[MIDI_STATUS_NOTE_OFF | ch, note, 0]);
+            bits &= !(1u128 << note);
+        }
+        active_notes[ch as usize] = 0;
+        let _ = midi_conn.send(&[
+            MIDI_STATUS_CONTROL_CHANGE | ch,
+            MIDI_CC_ALL_NOTES_OFF,
+            0,
+        ]);
+        let _ = midi_conn.send(&[
+            MIDI_STATUS_CONTROL_CHANGE | ch,
+            MIDI_CC_ALL_SOUND_OFF,
+            0,
+        ]);
+    }
 }
