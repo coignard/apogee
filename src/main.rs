@@ -24,11 +24,13 @@ use clap::{CommandFactory, FromArgMatches, Parser};
 use sha2::{Digest, Sha256};
 use winit::event_loop::EventLoop;
 
-use crate::app::App;
 use crate::app::audio::AudioSystem;
+use crate::app::{App, AppConfig};
 
 use apogee_rs::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::Machine;
+use apogee_rs::core::peripherals::UserPeripheral;
+use apogee_rs::core::peripherals::midi::MidiInterface;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
 const SYSTEM_ROM: &[u8] = include_bytes!("../dist/roms/apogee.rom");
@@ -66,9 +68,16 @@ fn check_integrity() -> Result<()> {
     help_template = "Usage: {usage}\n\n{all-args}"
 )]
 struct Args {
-    /// Path to a program image (.rka) to load at startup
     #[arg(value_name = "file", hide = true)]
     file: Option<String>,
+
+    /// Path to a program image (.rka) to load into RAM at startup
+    #[arg(long, value_name = "file", help_heading = "General options")]
+    rka: Option<String>,
+
+    /// Path to a ROM disk image (.rom) to plug into the user port
+    #[arg(long, value_name = "file", help_heading = "General options")]
+    rom: Option<String>,
 
     /// Run the loaded program immediately after startup
     #[arg(short = 'a', long = "autorun", help_heading = "General options")]
@@ -108,6 +117,14 @@ struct Args {
     #[arg(short, long, help_heading = "Display options")]
     crt: bool,
 
+    /// Connect to a MIDI output port by name or index
+    #[arg(long, num_args = 0..=1, default_missing_value = "", help_heading = "MIDI options")]
+    midi: Option<String>,
+
+    /// List available MIDI output ports and exit
+    #[arg(long, help_heading = "MIDI options")]
+    midi_list: bool,
+
     /// Enable debug hotkeys
     #[arg(long, help_heading = "Debug options")]
     debug: bool,
@@ -136,38 +153,56 @@ fn main() -> Result<()> {
     let matches = cmd.get_matches();
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
+    if args.midi_list {
+        if let Ok(midi_out) = midir::MidiOutput::new("Apogee BK-01") {
+            for (i, port) in midi_out.ports().iter().enumerate() {
+                if let Ok(name) = midi_out.port_name(port) {
+                    println!("{}: {}", i, name);
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    let (rka_path, rom_path) = match args.file {
+        Some(file) => {
+            let path = std::path::Path::new(&file);
+            match path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase())
+                .as_deref()
+            {
+                Some("rka") => (args.rka.or(Some(file)), args.rom),
+                Some("rom") => (args.rka, args.rom.or(Some(file))),
+                _ => anyhow::bail!(
+                    "unsupported file extension for '{}': only .rka and .rom are allowed",
+                    file
+                ),
+            }
+        }
+        None => (args.rka, args.rom),
+    };
+
+    ensure!(
+        rom_path.is_none() || args.midi.is_none(),
+        "a ROM disk cannot be plugged in simultaneously with the MIDI interface"
+    );
+
     let mut rom_sha256 = String::from(SYSTEM_ROM_HASH);
     let mut rom_name = String::from("monitor");
-    let mut rom_data_to_load = None;
 
-    if let Some(path) = &args.file {
-        let path_obj = std::path::Path::new(path);
-        let ext = path_obj.extension();
+    if let Some(path) = &rka_path {
+        let rka_data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
+        Machine::validate_rka(&rka_data, args.force)
+            .with_context(|| format!("invalid RKA file '{}'", path))?;
 
-        let is_rka = ext.is_some_and(|e| e.eq_ignore_ascii_case("rka"));
-        let is_rom = ext.is_some_and(|e| e.eq_ignore_ascii_case("rom"));
-
-        ensure!(
-            is_rka || is_rom,
-            "unsupported file extension for '{}': only .rka and .rom are allowed",
-            path
-        );
-
-        let data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
-
-        if is_rka {
-            Machine::validate_rka(&data, args.force)
-                .with_context(|| format!("invalid RKA file '{}'", path))?;
-        }
-
-        rom_sha256 = hex::encode(Sha256::digest(&data));
-        rom_name = path_obj
+        rom_sha256 = hex::encode(Sha256::digest(&rka_data));
+        rom_name = std::path::Path::new(path)
             .file_stem()
             .unwrap_or(std::ffi::OsStr::new("unknown"))
             .to_string_lossy()
             .into_owned();
-
-        rom_data_to_load = Some((data, is_rka));
     }
 
     let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
@@ -184,10 +219,54 @@ fn main() -> Result<()> {
     let mut machine = Machine::new(SYSTEM_ROM.to_vec(), audio.sample_rate);
     let video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, args.crt);
 
-    if let Some((data, is_rka)) = rom_data_to_load {
+    if let Some(path) = &rka_path {
+        let rka_data = fs::read(path).unwrap();
         machine
-            .load_rom(&data, is_rka, args.autorun, args.force)
-            .context("Unexpected error occured while loading ROM data into memory")?;
+            .load_rka(&rka_data, args.autorun, args.force)
+            .context("Unexpected error occured while loading RKA data into memory")?;
+    }
+
+    let mut midi_conn = None;
+
+    if let Some(rom_path_resolved) = &rom_path {
+        let data = fs::read(rom_path_resolved)
+            .with_context(|| format!("could not read '{}'", rom_path_resolved))?;
+        let mut romdisk = apogee_rs::core::peripherals::romdisk::RomDisk::new();
+        romdisk.load(&data);
+        machine.plug_user_peripheral(UserPeripheral::RomDisk(romdisk));
+    } else if let Some(midi_arg) = &args.midi {
+        if let Ok(midi_out) = midir::MidiOutput::new("Apogee BK-01") {
+            let ports = midi_out.ports();
+
+            let target_port = if midi_arg.is_empty() {
+                ports.first()
+            } else {
+                ports
+                    .iter()
+                    .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
+                    .or_else(|| {
+                        midi_arg
+                            .parse::<usize>()
+                            .ok()
+                            .and_then(|idx| ports.get(idx))
+                    })
+            };
+
+            if let Some(port) = target_port {
+                let conn_name = midi_out
+                    .port_name(port)
+                    .unwrap_or_else(|_| "Apogee BK-01 MIDI Out".to_string());
+                midi_conn = midi_out.connect(port, &conn_name).ok();
+            } else {
+                #[cfg(unix)]
+                {
+                    use midir::os::unix::VirtualOutput;
+                    midi_conn = midi_out.create_virtual(midi_arg).ok();
+                }
+            }
+        }
+
+        machine.plug_user_peripheral(UserPeripheral::Midi(MidiInterface::new()));
     }
 
     let recorder = args.record.then(|| {
@@ -215,7 +294,16 @@ fn main() -> Result<()> {
     };
 
     let mut app = App::new(
-        machine, video, audio, args.debug, recorder, player, rom_name,
+        machine,
+        video,
+        audio,
+        AppConfig {
+            debug_mode: args.debug,
+            recorder,
+            player,
+            rom_name,
+            midi_out: midi_conn,
+        },
     );
 
     event_loop

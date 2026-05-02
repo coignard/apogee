@@ -19,8 +19,11 @@ pub mod audio;
 pub mod keyboard;
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
+use crossbeam_channel::Sender;
 use pixels::{Pixels, SurfaceTexture};
+use spin_sleep::SpinSleeper;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, WindowEvent};
@@ -32,8 +35,22 @@ use crate::app::audio::AudioSystem;
 use crate::app::keyboard::map_keycode;
 
 use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
-use apogee_rs::core::machine::Machine;
+use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_HZ, Machine};
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
+
+const MIDI_CHANNEL_CAPACITY: usize = 4096;
+const MIDI_STATUS_CONTROL_CHANGE: u8 = 0xB0;
+const MIDI_CC_ALL_SOUND_OFF: u8 = 120;
+const MIDI_CC_ALL_NOTES_OFF: u8 = 123;
+const MIDI_CHANNELS_COUNT: u8 = 16;
+
+pub struct AppConfig {
+    pub debug_mode: bool,
+    pub recorder: Option<ReplayRecorder>,
+    pub player: Option<ReplayPlayer>,
+    pub rom_name: String,
+    pub midi_out: Option<midir::MidiOutputConnection>,
+}
 
 pub struct App {
     machine: Machine,
@@ -49,6 +66,10 @@ pub struct App {
     pub player: Option<ReplayPlayer>,
     pub rom_name: String,
 
+    midi_tx: Option<Sender<(Vec<u8>, u64)>>,
+    midi_stream: midly::stream::MidiStream,
+    midi_encode_buf: Vec<u8>,
+
     pub fatal_error: Option<anyhow::Error>,
 }
 
@@ -57,24 +78,110 @@ impl App {
         machine: Machine,
         video: VideoRenderer,
         audio: AudioSystem,
-        debug_mode: bool,
-        recorder: Option<ReplayRecorder>,
-        player: Option<ReplayPlayer>,
-        rom_name: String,
+        config: AppConfig,
     ) -> Self {
+        let cpu_freq = MASTER_CLOCK_HZ as f64 / CPU_DIVIDER as f64;
+        let frame_duration_secs = DEFAULT_FRAME_CYCLES as f64 / cpu_freq;
+        let sync_lag_threshold = Duration::from_secs_f64(frame_duration_secs * 3.0);
+
+        let midi_tx = config.midi_out.map(|mut midi_conn| {
+            let (tx, rx) = crossbeam_channel::bounded::<(Vec<u8>, u64)>(MIDI_CHANNEL_CAPACITY);
+            std::thread::spawn(move || {
+                let sleeper = SpinSleeper::default();
+                let mut anchor: Option<(Instant, u64)> = None;
+
+                while let Ok((msg, target_cycle)) = rx.recv() {
+                    let now = Instant::now();
+                    let (anchor_time, anchor_cycle) = *anchor.get_or_insert((now, target_cycle));
+
+                    let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
+                    let target_time =
+                        anchor_time + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
+
+                    if target_time > now {
+                        sleeper.sleep_until(target_time);
+                    } else if now.duration_since(target_time) > sync_lag_threshold {
+                        anchor = Some((now, target_cycle));
+                    }
+
+                    let _ = midi_conn.send(&msg);
+                }
+
+                for channel in 0..MIDI_CHANNELS_COUNT {
+                    let _ = midi_conn.send(&[
+                        MIDI_STATUS_CONTROL_CHANGE | channel,
+                        MIDI_CC_ALL_NOTES_OFF,
+                        0,
+                    ]);
+                    let _ = midi_conn.send(&[
+                        MIDI_STATUS_CONTROL_CHANGE | channel,
+                        MIDI_CC_ALL_SOUND_OFF,
+                        0,
+                    ]);
+                }
+            });
+            tx
+        });
+
         Self {
             machine,
             video,
             audio,
             window: None,
             pixels: None,
-            debug_mode,
+            debug_mode: config.debug_mode,
             paused: false,
             step_frame: false,
-            recorder,
-            player,
-            rom_name,
+            recorder: config.recorder,
+            player: config.player,
+            rom_name: config.rom_name,
             fatal_error: None,
+            midi_tx,
+            midi_stream: midly::stream::MidiStream::new(),
+            midi_encode_buf: Vec::with_capacity(3),
+        }
+    }
+
+    fn cycle(&mut self) -> Result<bool, ()> {
+        if let Some(player) = &mut self.player {
+            let _ = player.apply_pending_events(&mut self.machine);
+        }
+
+        let mut audio_alive = true;
+        let vblank_occurred = self.machine.tick(|sample| {
+            if let Err(crossbeam_channel::TrySendError::Disconnected(_)) =
+                self.audio.tx.try_send(sample)
+            {
+                audio_alive = false;
+            }
+        });
+
+        self.process_midi_events();
+
+        if !audio_alive {
+            Err(())
+        } else {
+            Ok(vblank_occurred)
+        }
+    }
+
+    fn process_midi_events(&mut self) {
+        if let Some(tx) = &self.midi_tx {
+            let stream = &mut self.midi_stream;
+            let encode_buf = &mut self.midi_encode_buf;
+
+            self.machine.drain_midi_out(|events| {
+                for &(byte, cycle) in events {
+                    stream.feed(&[byte], |live_event| {
+                        encode_buf.clear();
+                        if live_event.write_std(&mut *encode_buf).is_ok() {
+                            let _ = tx.try_send((encode_buf.clone(), cycle));
+                        }
+                    });
+                }
+            });
+        } else {
+            self.machine.drain_midi_out(|_| {});
         }
     }
 
@@ -222,7 +329,6 @@ impl ApplicationHandler for App {
         let mut frame_ready_for_render = false;
         let mut size_changed = false;
         let mut audio_alive = true;
-        let tx = &self.audio.tx;
 
         let cpu_freq =
             apogee_rs::core::machine::MASTER_CLOCK_HZ / apogee_rs::core::machine::CPU_DIVIDER;
@@ -234,43 +340,38 @@ impl ApplicationHandler for App {
         if self.step_frame {
             let mut vblank_occurred = false;
             while !vblank_occurred {
-                if let Some(player) = &mut self.player {
-                    let _ = player.apply_pending_events(&mut self.machine);
+                match self.cycle() {
+                    Ok(v) => vblank_occurred = v,
+                    Err(_) => {
+                        audio_alive = false;
+                        break;
+                    }
                 }
-
-                vblank_occurred = self.machine.tick(|sample| {
-                    let _ = tx.try_send(sample);
-                });
             }
-            if self.video.render_frame(self.machine.vg75()) {
+            if audio_alive && self.video.render_frame(self.machine.vg75()) {
                 size_changed = true;
             }
             frame_ready_for_render = true;
             self.step_frame = false;
         } else {
-            if tx.len() >= latency_samples {
+            if self.audio.tx.len() >= latency_samples {
                 std::thread::yield_now();
                 return;
             }
 
-            while tx.len() < latency_samples && audio_alive {
-                if let Some(player) = &mut self.player {
-                    let _ = player.apply_pending_events(&mut self.machine);
-                }
-
-                let vblank_occurred = self.machine.tick(|sample| match tx.try_send(sample) {
-                    Ok(_) => {}
-                    Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
+            while self.audio.tx.len() < latency_samples && audio_alive {
+                match self.cycle() {
+                    Ok(vblank_occurred) => {
+                        if vblank_occurred {
+                            if self.video.render_frame(self.machine.vg75()) {
+                                size_changed = true;
+                            }
+                            frame_ready_for_render = true;
+                        }
+                    }
+                    Err(_) => {
                         audio_alive = false;
                     }
-                    Err(crossbeam_channel::TrySendError::Full(_)) => {}
-                });
-
-                if vblank_occurred {
-                    if self.video.render_frame(self.machine.vg75()) {
-                        size_changed = true;
-                    }
-                    frame_ready_for_render = true;
                 }
             }
         }

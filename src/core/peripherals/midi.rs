@@ -15,38 +15,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod keyboard;
-pub mod midi;
-pub mod romdisk;
-
 use serde::Serialize;
 
-use crate::core::peripherals::midi::MidiInterface;
-use crate::core::peripherals::romdisk::RomDisk;
+const MAX_MIDI_BUFFER: usize = 256;
+const STROBE_BIT: u8 = 0x01;
 
-#[derive(Serialize, Default)]
-pub enum UserPeripheral {
-    RomDisk(RomDisk),
-    Midi(MidiInterface),
-    #[default]
-    None,
+#[derive(Serialize)]
+pub struct MidiInterface {
+    pub(crate) out_buffer: Vec<(u8, u64)>,
+    last_port_c: u8,
 }
 
-impl UserPeripheral {
-    #[inline]
-    pub fn read_port_a(&self) -> u8 {
-        match self {
-            Self::RomDisk(disk) => disk.read_data(),
-            _ => 0xFF,
+impl Default for MidiInterface {
+    fn default() -> Self {
+        Self {
+            out_buffer: Vec::with_capacity(MAX_MIDI_BUFFER),
+            last_port_c: 0,
         }
+    }
+}
+
+impl MidiInterface {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     #[inline]
-    pub fn update(&mut self, port_a: u8, port_b: u8, port_c: u8, cycle_count: u64) {
-        match self {
-            Self::RomDisk(disk) => disk.update_addr(port_b, port_c),
-            Self::Midi(midi) => midi.update(port_a, port_c, cycle_count),
-            Self::None => {}
+    pub fn update(&mut self, port_a: u8, port_c: u8, cycle_count: u64) {
+        let rising_edge = (port_c & STROBE_BIT) != 0 && (self.last_port_c & STROBE_BIT) == 0;
+
+        if rising_edge && self.out_buffer.len() < MAX_MIDI_BUFFER {
+            self.out_buffer.push((port_a, cycle_count));
         }
+
+        self.last_port_c = port_c;
     }
 }

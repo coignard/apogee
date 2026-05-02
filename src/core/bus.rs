@@ -23,8 +23,8 @@ use super::chips::kr580vg75::Kr580Vg75;
 use super::chips::kr580vi53::Kr580Vi53;
 use super::chips::kr580vt57::Kr580Vt57;
 use super::chips::kr580vv55a::Kr580Vv55a;
+use super::peripherals::UserPeripheral;
 use super::peripherals::keyboard::Keyboard;
-use super::peripherals::romdisk::RomDisk;
 
 pub mod memory_map {
     pub const RAM_START: u16 = 0x0000;
@@ -64,7 +64,10 @@ pub struct Bus {
     pub(crate) user_vv55: Kr580Vv55a,
 
     pub(crate) keyboard: Keyboard,
-    pub(crate) romdisk: RomDisk,
+    pub(crate) user_slot: UserPeripheral,
+
+    #[serde(skip)]
+    pub(crate) current_cycle: u64,
 }
 
 impl Bus {
@@ -78,7 +81,8 @@ impl Bus {
             sys_vv55: Kr580Vv55a::new(),
             user_vv55: Kr580Vv55a::new(),
             keyboard: Keyboard::new(),
-            romdisk: RomDisk::new(),
+            user_slot: UserPeripheral::None,
+            current_cycle: 0,
         }
     }
 }
@@ -94,7 +98,7 @@ impl Machine for Bus {
                 self.sys_vv55.read(addr, 0xFF, kbd_res, port_c_in)
             }
             memory_map::PPI_USR_BASE..=memory_map::PPI_USR_END => {
-                let port_a_in = self.romdisk.read_data();
+                let port_a_in = self.user_slot.read_port_a();
                 self.user_vv55.read(addr, port_a_in, 0xFF, 0xFF)
             }
             memory_map::CRTC_BASE..=memory_map::CRTC_END => self.vg75.read(addr),
@@ -116,9 +120,11 @@ impl Machine for Bus {
             memory_map::PPI_SYS_BASE..=memory_map::PPI_SYS_END => self.sys_vv55.write(addr, val),
             memory_map::PPI_USR_BASE..=memory_map::PPI_USR_END => {
                 self.user_vv55.write(addr, val);
+                let port_a = self.user_vv55.port_a_out;
                 let port_b = self.user_vv55.port_b_out;
                 let port_c = self.user_vv55.port_c_out;
-                self.romdisk.update_addr(port_b, port_c);
+                self.user_slot
+                    .update(port_a, port_b, port_c, self.current_cycle);
             }
             memory_map::CRTC_BASE..=memory_map::CRTC_END => self.vg75.write(addr, val),
             memory_map::DMA_ROM_BASE..=memory_map::DMA_ROM_END => self.vt57.write(addr, val),

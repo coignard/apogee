@@ -23,6 +23,7 @@ use super::audio::AudioMixer;
 use super::bus::Bus;
 use super::chips::kr580vg75::Kr580Vg75;
 pub use super::peripherals::keyboard::Key;
+use crate::core::peripherals::UserPeripheral;
 
 pub const MASTER_CLOCK_HZ: u32 = 16_000_000;
 pub const CPU_DIVIDER: u32 = 9;
@@ -205,18 +206,12 @@ impl Machine {
         Ok(())
     }
 
-    pub fn load_rom(
+    pub fn load_rka(
         &mut self,
         payload: &[u8],
-        is_rka: bool,
         autorun: bool,
         force: bool,
     ) -> Result<(), MachineError> {
-        if !is_rka {
-            self.bus.romdisk.load(payload);
-            return Ok(());
-        }
-
         Self::validate_rka(payload, force)?;
 
         let (header, payload_data) = payload.split_at(RKA_HEADER_SIZE);
@@ -230,7 +225,7 @@ impl Machine {
         };
 
         let len = expected_len.min(payload_data.len());
-        let (data, _tail) = payload_data.split_at(len);
+        let (data, _) = payload_data.split_at(len);
 
         if autorun {
             for _ in (0..AUTORUN_DELAY_CYCLES).step_by(DEFAULT_FRAME_CYCLES as usize) {
@@ -248,6 +243,20 @@ impl Machine {
         }
 
         Ok(())
+    }
+
+    pub fn plug_user_peripheral(&mut self, peripheral: UserPeripheral) {
+        self.bus.user_slot = peripheral;
+    }
+
+    #[inline]
+    pub fn drain_midi_out<F: FnMut(&[(u8, u64)])>(&mut self, mut f: F) {
+        if let UserPeripheral::Midi(midi) = &mut self.bus.user_slot
+            && !midi.out_buffer.is_empty()
+        {
+            f(&midi.out_buffer);
+            midi.out_buffer.clear();
+        }
     }
 
     pub fn update_key(&mut self, key: Key, pressed: bool) {
@@ -306,6 +315,7 @@ impl Machine {
 
     #[inline]
     fn execute_cpu_instruction(&mut self) -> u32 {
+        self.bus.current_cycle = self.total_cycles;
         let cycles_before = self.cpu.cycle_count();
         self.cpu.execute_instruction(&mut self.bus);
         let cycles_after = self.cpu.cycle_count();
