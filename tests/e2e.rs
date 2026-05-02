@@ -63,25 +63,35 @@ fn replay_matches_snapshot(replay_path_str: &str) {
         );
 
         machine
-            .load_rom(&rka_data, true, autorun, true)
-            .expect("Failed to load ROM");
+            .load_rka(&rka_data, autorun, true)
+            .expect("Failed to load RKA");
     }
+
+    let update_snapshots = std::env::var("UPDATE_SNAPSHOTS").is_ok();
 
     while !player.is_finished() {
         let snapshots = player.apply_pending_events(&mut machine);
 
         for snap in snapshots {
             let json_path = format!("tests/dumps/{}/{}.json", base_name, snap);
-            let expected_json_file = fs::File::open(&json_path)
-                .unwrap_or_else(|_| panic!("Failed to open expected JSON: {}", json_path));
+            let state = machine.state();
 
-            let expected_state: serde_json::Value =
-                serde_json::from_reader(expected_json_file).expect("Failed to parse expected JSON");
+            if update_snapshots {
+                let file = fs::File::create(&json_path)
+                    .unwrap_or_else(|_| panic!("Failed to overwrite JSON: {}", json_path));
+                serde_json::to_writer_pretty(file, &state).expect("Failed to write updated JSON");
+            } else {
+                let expected_json_file = fs::File::open(&json_path)
+                    .unwrap_or_else(|_| panic!("Failed to open expected JSON: {}", json_path));
 
-            let actual_state =
-                serde_json::to_value(&machine.state()).expect("Failed to serialize machine state");
+                let expected_state: serde_json::Value = serde_json::from_reader(expected_json_file)
+                    .expect("Failed to parse expected JSON");
 
-            assert_json_eq!(expected_state, actual_state);
+                let actual_state =
+                    serde_json::to_value(&state).expect("Failed to serialize machine state");
+
+                assert_json_eq!(expected_state, actual_state);
+            }
 
             let png_path = format!("tests/dumps/{}/{}.png", base_name, snap);
             let expected_img = image::open(&png_path)
