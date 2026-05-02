@@ -1,7 +1,7 @@
 Apogee
 ======
 
-Apogee BK-01 emulator with MIDI interface support via PPI.
+Apogee BK-01 emulator with MIDI support via PPI.
 
 This source code is licensed under the GNU GPLv3.  See the LICENSE file
 for more details.
