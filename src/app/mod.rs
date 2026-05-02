@@ -121,7 +121,8 @@ impl App {
 
         let cpu_freq = MASTER_CLOCK_HZ as f64 / CPU_DIVIDER as f64;
         let frame_duration_secs = DEFAULT_FRAME_CYCLES as f64 / cpu_freq;
-        let sync_lag_threshold = Duration::from_secs_f64(frame_duration_secs * MIDI_SYNC_LAG_FRAMES);
+        let sync_lag_threshold =
+            Duration::from_secs_f64(frame_duration_secs * MIDI_SYNC_LAG_FRAMES);
 
         let (midi_tx, midi_thread) = match config.midi_out {
             Some(mut midi_conn) => {
@@ -135,8 +136,13 @@ impl App {
 
                         while let Ok((msg, target_cycle)) = rx.recv() {
                             let now = Instant::now();
-                            let (anchor_time, anchor_cycle) =
-                                *anchor.get_or_insert((now, target_cycle));
+                            let (anchor_time, anchor_cycle) = *anchor.get_or_insert_with(|| {
+                                let latency_secs = frame_duration_secs
+                                    * (AUDIO_LATENCY_FRAMES_NUMER as f64
+                                        / AUDIO_LATENCY_FRAMES_DENOM as f64);
+                                let delay = Duration::from_secs_f64(latency_secs);
+                                (now + delay, target_cycle)
+                            });
 
                             let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
                             let target_time = anchor_time
@@ -412,8 +418,8 @@ fn run_emulation(
         let cpu_freq = MASTER_CLOCK_HZ / CPU_DIVIDER;
         let samples_per_frame =
             (sample_rate as u64 * DEFAULT_FRAME_CYCLES as u64) / cpu_freq as u64;
-        let latency_samples =
-            ((samples_per_frame * AUDIO_LATENCY_FRAMES_NUMER) / AUDIO_LATENCY_FRAMES_DENOM) as usize;
+        let latency_samples = ((samples_per_frame * AUDIO_LATENCY_FRAMES_NUMER)
+            / AUDIO_LATENCY_FRAMES_DENOM) as usize;
 
         let mut paused = false;
         let mut step_frame = false;
@@ -618,15 +624,7 @@ fn silence_active_notes(
             bits &= !(1u128 << note);
         }
         active_notes[ch as usize] = 0;
-        let _ = midi_conn.send(&[
-            MIDI_STATUS_CONTROL_CHANGE | ch,
-            MIDI_CC_ALL_NOTES_OFF,
-            0,
-        ]);
-        let _ = midi_conn.send(&[
-            MIDI_STATUS_CONTROL_CHANGE | ch,
-            MIDI_CC_ALL_SOUND_OFF,
-            0,
-        ]);
+        let _ = midi_conn.send(&[MIDI_STATUS_CONTROL_CHANGE | ch, MIDI_CC_ALL_NOTES_OFF, 0]);
+        let _ = midi_conn.send(&[MIDI_STATUS_CONTROL_CHANGE | ch, MIDI_CC_ALL_SOUND_OFF, 0]);
     }
 }
