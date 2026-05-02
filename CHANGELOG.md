@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+### Changed
+
+- Emulation loop moved from the winit `about_to_wait` callback to a dedicated `emulation` thread; the event loop now only receives rendered frames and dispatches input, eliminating hangs when the window loses focus on macOS
+- Key events, pause/step commands, and snapshot requests sent to the emulation thread via an unbounded `crossbeam` command channel; rendered frames returned via a bounded(2) frame channel
+- `App` no longer owns `Machine` or `VideoRenderer`; both are moved into the emulation thread at construction time
+- `App::cycle()` and `App::process_midi_events()` replaced by free functions `emu_cycle()` and `send_frame()` running on the emulation thread
+- `App::dump_snapshot()` replaced by free function `dump_snapshot()` invoked from the emulation thread via `EmulationCommand::DumpSnapshot`
+- Replay recording timestamps captured on the emulation thread at the point of key application, replacing the previous winit-side timestamping
+- Emulation thread exits cleanly when the command channel disconnects or a `Quit` command is received; joined in the `exiting` handler
+
 ## 0.2.0
 
 ### Added
