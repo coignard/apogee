@@ -19,9 +19,10 @@ pub mod audio;
 pub mod keyboard;
 
 use std::sync::Arc;
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender};
 use pixels::{Pixels, SurfaceTexture};
 use spin_sleep::SpinSleeper;
 use winit::application::ApplicationHandler;
@@ -36,6 +37,7 @@ use crate::app::keyboard::map_keycode;
 
 use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_HZ, Machine};
+use apogee_rs::core::peripherals::keyboard::Key;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
 const MIDI_CHANNEL_CAPACITY: usize = 4096;
@@ -43,6 +45,27 @@ const MIDI_STATUS_CONTROL_CHANGE: u8 = 0xB0;
 const MIDI_CC_ALL_SOUND_OFF: u8 = 120;
 const MIDI_CC_ALL_NOTES_OFF: u8 = 123;
 const MIDI_CHANNELS_COUNT: u8 = 16;
+
+const FRAME_CHANNEL_CAPACITY: usize = 2;
+
+struct EmulationFrame {
+    width: u32,
+    height: u32,
+    buffer: Box<[u8]>,
+}
+
+enum EmulationCommand {
+    KeyEvent { key: Key, pressed: bool },
+    TogglePause,
+    StepFrame,
+    DumpSnapshot { rom_name: String },
+    SaveReplay { rom_name: String },
+    Quit,
+}
+
+enum EmulationError {
+    AudioDisconnected,
+}
 
 pub struct AppConfig {
     pub debug_mode: bool,
@@ -53,22 +76,25 @@ pub struct AppConfig {
 }
 
 pub struct App {
-    machine: Machine,
-    video: VideoRenderer,
     audio: AudioSystem,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
 
-    pub debug_mode: bool,
-    pub paused: bool,
-    pub step_frame: bool,
-    pub recorder: Option<ReplayRecorder>,
-    pub player: Option<ReplayPlayer>,
-    pub rom_name: String,
+    color_mode: ColorMode,
+    initial_width: u32,
+    initial_height: u32,
+    current_width: u32,
+    current_height: u32,
 
-    midi_tx: Option<Sender<(Vec<u8>, u64)>>,
-    midi_stream: midly::stream::MidiStream,
-    midi_encode_buf: Vec<u8>,
+    debug_mode: bool,
+    paused: bool,
+    has_player: bool,
+    rom_name: String,
+
+    cmd_tx: Sender<EmulationCommand>,
+    frame_rx: Receiver<EmulationFrame>,
+    emu_err_rx: Receiver<EmulationError>,
+    emu_thread: Option<JoinHandle<()>>,
 
     pub fatal_error: Option<anyhow::Error>,
 }
@@ -80,6 +106,10 @@ impl App {
         audio: AudioSystem,
         config: AppConfig,
     ) -> Self {
+        let color_mode = video.color_mode;
+        let initial_width = video.width();
+        let initial_height = video.height();
+
         let cpu_freq = MASTER_CLOCK_HZ as f64 / CPU_DIVIDER as f64;
         let frame_duration_secs = DEFAULT_FRAME_CYCLES as f64 / cpu_freq;
         let sync_lag_threshold = Duration::from_secs_f64(frame_duration_secs * 3.0);
@@ -123,82 +153,52 @@ impl App {
             tx
         });
 
+        let (cmd_tx, cmd_rx) = crossbeam_channel::unbounded::<EmulationCommand>();
+        let (frame_tx, frame_rx) =
+            crossbeam_channel::bounded::<EmulationFrame>(FRAME_CHANNEL_CAPACITY);
+        let (emu_err_tx, emu_err_rx) = crossbeam_channel::bounded::<EmulationError>(1);
+
+        let audio_tx = audio.tx.clone();
+        let sample_rate = audio.sample_rate;
+        let has_player = config.player.is_some();
+
+        let emu_thread = std::thread::Builder::new()
+            .name("emulation".into())
+            .spawn(move || {
+                run_emulation(
+                    machine,
+                    video,
+                    audio_tx,
+                    sample_rate,
+                    midi_tx,
+                    config.recorder,
+                    config.player,
+                    cmd_rx,
+                    frame_tx,
+                    emu_err_tx,
+                );
+            })
+            .expect("Failed to spawn emulation thread");
+
         Self {
-            machine,
-            video,
             audio,
             window: None,
             pixels: None,
+            color_mode,
+            initial_width,
+            initial_height,
+            current_width: initial_width,
+            current_height: initial_height,
             debug_mode: config.debug_mode,
             paused: false,
-            step_frame: false,
-            recorder: config.recorder,
-            player: config.player,
+            has_player,
             rom_name: config.rom_name,
+            cmd_tx,
+            frame_rx,
+            emu_err_rx,
+            emu_thread: Some(emu_thread),
             fatal_error: None,
-            midi_tx,
-            midi_stream: midly::stream::MidiStream::new(),
-            midi_encode_buf: Vec::with_capacity(3),
         }
-    }
-
-    fn cycle(&mut self) -> Result<bool, ()> {
-        if let Some(player) = &mut self.player {
-            let _ = player.apply_pending_events(&mut self.machine);
-        }
-
-        let mut audio_alive = true;
-        let vblank_occurred = self.machine.tick(|sample| {
-            if let Err(crossbeam_channel::TrySendError::Disconnected(_)) =
-                self.audio.tx.try_send(sample)
-            {
-                audio_alive = false;
-            }
-        });
-
-        self.process_midi_events();
-
-        if !audio_alive {
-            Err(())
-        } else {
-            Ok(vblank_occurred)
-        }
-    }
-
-    fn process_midi_events(&mut self) {
-        if let Some(tx) = &self.midi_tx {
-            let stream = &mut self.midi_stream;
-            let encode_buf = &mut self.midi_encode_buf;
-
-            self.machine.drain_midi_out(|events| {
-                for &(byte, cycle) in events {
-                    stream.feed(&[byte], |live_event| {
-                        encode_buf.clear();
-                        if live_event.write_std(&mut *encode_buf).is_ok() {
-                            let _ = tx.try_send((encode_buf.clone(), cycle));
-                        }
-                    });
-                }
-            });
-        } else {
-            self.machine.drain_midi_out(|_| {});
-        }
-    }
-
-    fn dump_snapshot(&self, name: &str) {
-        let json_name = format!("{}.json", name);
-        let png_name = format!("{}.png", name);
-
-        if let Ok(file) = std::fs::File::create(&json_name) {
-            let writer = std::io::BufWriter::new(file);
-            let _ = serde_json::to_writer_pretty(writer, &self.machine.state());
-        }
-
-        let w = self.video.width();
-        let h = self.video.height();
-        let buffer = self.video.frame_buffer();
-
-        let _ = image::save_buffer(&png_name, buffer, w, h, image::ExtendedColorType::Rgba8);
     }
 }
 
@@ -208,13 +208,13 @@ impl ApplicationHandler for App {
             return;
         }
 
-        let title = match self.video.color_mode {
+        let title = match self.color_mode {
             ColorMode::Color => "Апогей БК-01Ц",
             ColorMode::Grayscale | ColorMode::Bw => "Апогей БК-01",
         };
 
-        let width = self.video.width();
-        let height = self.video.height();
+        let width = self.initial_width;
+        let height = self.initial_height;
 
         let size = LogicalSize::new((width * 2) as f64, (height * 2) as f64);
 
@@ -265,47 +265,39 @@ impl ApplicationHandler for App {
                         match key_code {
                             KeyCode::F8 if pressed => {
                                 self.paused = !self.paused;
+                                let _ = self.cmd_tx.send(EmulationCommand::TogglePause);
                             }
                             KeyCode::F9 if pressed && self.paused => {
-                                self.step_frame = true;
+                                let _ = self.cmd_tx.send(EmulationCommand::StepFrame);
                             }
                             KeyCode::F10 if pressed => {
-                                let frame = self.machine.cycle_count();
-                                let snap_name = format!("{}_frame_{}", self.rom_name, frame);
-
-                                self.dump_snapshot(&snap_name);
-
-                                if let Some(rec) = &mut self.recorder {
-                                    rec.push_snapshot(frame, snap_name.clone());
-                                    let _ = rec.save(&format!("{}.json", self.rom_name));
-                                }
+                                let _ = self.cmd_tx.send(EmulationCommand::DumpSnapshot {
+                                    rom_name: self.rom_name.clone(),
+                                });
+                                let _ = self.cmd_tx.send(EmulationCommand::SaveReplay {
+                                    rom_name: self.rom_name.clone(),
+                                });
                             }
                             _ => {}
                         }
                     }
 
                     if let Some(key) = map_keycode(key_code)
-                        && self.player.is_none()
+                        && !self.has_player
                     {
-                        self.machine.update_key(key, pressed);
-
-                        if let Some(rec) = &mut self.recorder {
-                            rec.push_key(self.machine.cycle_count(), key, pressed);
-                        }
+                        let _ = self
+                            .cmd_tx
+                            .send(EmulationCommand::KeyEvent { key, pressed });
                     }
                 }
             }
             WindowEvent::RedrawRequested => {
-                if let Some(pixels) = &mut self.pixels {
-                    pixels
-                        .frame_mut()
-                        .copy_from_slice(self.video.frame_buffer());
-
-                    if let Err(err) = pixels.render() {
-                        self.fatal_error =
-                            Some(anyhow::Error::new(err).context("Pixels render failed"));
-                        event_loop.exit();
-                    }
+                if let Some(pixels) = &mut self.pixels
+                    && let Err(err) = pixels.render()
+                {
+                    self.fatal_error =
+                        Some(anyhow::Error::new(err).context("Pixels render failed"));
+                    event_loop.exit();
                 }
             }
             _ => (),
@@ -319,76 +311,31 @@ impl ApplicationHandler for App {
             return;
         }
 
-        if self.paused && !self.step_frame {
-            event_loop.set_control_flow(ControlFlow::Wait);
-            return;
-        }
-
-        event_loop.set_control_flow(ControlFlow::Poll);
-
-        let mut frame_ready_for_render = false;
-        let mut size_changed = false;
-        let mut audio_alive = true;
-
-        let cpu_freq =
-            apogee_rs::core::machine::MASTER_CLOCK_HZ / apogee_rs::core::machine::CPU_DIVIDER;
-        let samples_per_frame = (self.audio.sample_rate as u64
-            * apogee_rs::core::machine::DEFAULT_FRAME_CYCLES as u64)
-            / cpu_freq as u64;
-        let latency_samples = ((samples_per_frame * 3) / 2) as usize;
-
-        if self.step_frame {
-            let mut vblank_occurred = false;
-            while !vblank_occurred {
-                match self.cycle() {
-                    Ok(v) => vblank_occurred = v,
-                    Err(_) => {
-                        audio_alive = false;
-                        break;
-                    }
+        if let Ok(emu_err) = self.emu_err_rx.try_recv() {
+            self.fatal_error = Some(match emu_err {
+                EmulationError::AudioDisconnected => {
+                    anyhow::anyhow!("Audio device disconnected")
                 }
-            }
-            if audio_alive && self.video.render_frame(self.machine.vg75()) {
-                size_changed = true;
-            }
-            frame_ready_for_render = true;
-            self.step_frame = false;
-        } else {
-            if self.audio.tx.len() >= latency_samples {
-                std::thread::yield_now();
-                return;
-            }
-
-            while self.audio.tx.len() < latency_samples && audio_alive {
-                match self.cycle() {
-                    Ok(vblank_occurred) => {
-                        if vblank_occurred {
-                            if self.video.render_frame(self.machine.vg75()) {
-                                size_changed = true;
-                            }
-                            frame_ready_for_render = true;
-                        }
-                    }
-                    Err(_) => {
-                        audio_alive = false;
-                    }
-                }
-            }
-        }
-
-        if !audio_alive {
-            self.fatal_error = Some(anyhow::anyhow!("Audio device disconnected"));
+            });
             event_loop.exit();
             return;
         }
 
-        if frame_ready_for_render {
+        let mut latest_frame = None;
+        while let Ok(frame) = self.frame_rx.try_recv() {
+            latest_frame = Some(frame);
+        }
+
+        if let Some(frame) = latest_frame {
+            let size_changed =
+                frame.width != self.current_width || frame.height != self.current_height;
+
             if size_changed {
-                let w = self.video.width();
-                let h = self.video.height();
+                self.current_width = frame.width;
+                self.current_height = frame.height;
 
                 if let Some(pixels) = &mut self.pixels
-                    && let Err(err) = pixels.resize_buffer(w, h)
+                    && let Err(err) = pixels.resize_buffer(frame.width, frame.height)
                 {
                     self.fatal_error =
                         Some(anyhow::Error::new(err).context("Pixels resize buffer failed"));
@@ -397,25 +344,221 @@ impl ApplicationHandler for App {
                 }
             }
 
+            if let Some(pixels) = &mut self.pixels {
+                pixels.frame_mut().copy_from_slice(&frame.buffer);
+            }
+
             if let Some(window) = &self.window {
                 if size_changed {
-                    let w = self.video.width() as f64 * 2.0;
-                    let h = self.video.height() as f64 * 2.0;
+                    let w = frame.width as f64 * 2.0;
+                    let h = frame.height as f64 * 2.0;
                     let _ = window.request_inner_size(LogicalSize::new(w, h));
                 }
                 window.request_redraw();
             }
         }
+
+        event_loop.set_control_flow(ControlFlow::Poll);
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        let Some(rec) = &self.recorder else { return };
+        let _ = self.cmd_tx.send(EmulationCommand::SaveReplay {
+            rom_name: self.rom_name.clone(),
+        });
+        let _ = self.cmd_tx.send(EmulationCommand::Quit);
 
-        let filename = format!("{}.json", self.rom_name);
-
-        if let Err(err) = rec.save(&filename) {
-            self.fatal_error
-                .get_or_insert_with(|| err.context(format!("Failed to save replay to {filename}")));
+        if let Some(handle) = self.emu_thread.take() {
+            let _ = handle.join();
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_emulation(
+    mut machine: Machine,
+    mut video: VideoRenderer,
+    audio_tx: Sender<f32>,
+    sample_rate: u32,
+    midi_tx: Option<Sender<(Vec<u8>, u64)>>,
+    mut recorder: Option<ReplayRecorder>,
+    mut player: Option<ReplayPlayer>,
+    cmd_rx: Receiver<EmulationCommand>,
+    frame_tx: Sender<EmulationFrame>,
+    emu_err_tx: Sender<EmulationError>,
+) {
+    let mut midi_stream = midly::stream::MidiStream::new();
+    let mut midi_encode_buf = Vec::with_capacity(3);
+
+    let cpu_freq = MASTER_CLOCK_HZ / CPU_DIVIDER;
+    let samples_per_frame = (sample_rate as u64 * DEFAULT_FRAME_CYCLES as u64) / cpu_freq as u64;
+    let latency_samples = ((samples_per_frame * 3) / 2) as usize;
+
+    let mut paused = false;
+    let mut step_frame = false;
+
+    loop {
+        loop {
+            let cmd = if paused && !step_frame {
+                match cmd_rx.recv() {
+                    Ok(cmd) => cmd,
+                    Err(_) => return,
+                }
+            } else {
+                match cmd_rx.try_recv() {
+                    Ok(cmd) => cmd,
+                    Err(crossbeam_channel::TryRecvError::Empty) => break,
+                    Err(crossbeam_channel::TryRecvError::Disconnected) => return,
+                }
+            };
+
+            match cmd {
+                EmulationCommand::KeyEvent { key, pressed } => {
+                    machine.update_key(key, pressed);
+                    if let Some(rec) = &mut recorder {
+                        rec.push_key(machine.cycle_count(), key, pressed);
+                    }
+                }
+                EmulationCommand::TogglePause => {
+                    paused = !paused;
+                }
+                EmulationCommand::StepFrame => {
+                    step_frame = true;
+                }
+                EmulationCommand::DumpSnapshot { rom_name } => {
+                    let frame = machine.cycle_count();
+                    let snap_name = format!("{}_frame_{}", rom_name, frame);
+                    dump_snapshot(&machine, &video, &snap_name);
+
+                    if let Some(rec) = &mut recorder {
+                        rec.push_snapshot(frame, snap_name);
+                    }
+                }
+                EmulationCommand::SaveReplay { rom_name } => {
+                    if let Some(rec) = &recorder {
+                        let _ = rec.save(&format!("{}.json", rom_name));
+                    }
+                }
+                EmulationCommand::Quit => return,
+            }
+        }
+
+        if step_frame {
+            let mut vblank_occurred = false;
+            while !vblank_occurred {
+                match emu_cycle(
+                    &mut machine,
+                    &audio_tx,
+                    &midi_tx,
+                    &mut midi_stream,
+                    &mut midi_encode_buf,
+                    &mut player,
+                ) {
+                    Ok(v) => vblank_occurred = v,
+                    Err(()) => {
+                        let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
+                        return;
+                    }
+                }
+            }
+            video.render_frame(machine.vg75());
+            send_frame(&video, &frame_tx);
+            step_frame = false;
+            continue;
+        }
+
+        if audio_tx.len() >= latency_samples {
+            std::thread::yield_now();
+            continue;
+        }
+
+        while audio_tx.len() < latency_samples {
+            match emu_cycle(
+                &mut machine,
+                &audio_tx,
+                &midi_tx,
+                &mut midi_stream,
+                &mut midi_encode_buf,
+                &mut player,
+            ) {
+                Ok(vblank_occurred) => {
+                    if vblank_occurred {
+                        video.render_frame(machine.vg75());
+                        send_frame(&video, &frame_tx);
+                    }
+                }
+                Err(()) => {
+                    let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+#[inline]
+fn emu_cycle(
+    machine: &mut Machine,
+    audio_tx: &Sender<f32>,
+    midi_tx: &Option<Sender<(Vec<u8>, u64)>>,
+    midi_stream: &mut midly::stream::MidiStream,
+    midi_encode_buf: &mut Vec<u8>,
+    player: &mut Option<ReplayPlayer>,
+) -> Result<bool, ()> {
+    if let Some(player) = player {
+        let _ = player.apply_pending_events(machine);
+    }
+
+    let mut audio_alive = true;
+    let vblank_occurred = machine.tick(|sample| {
+        if let Err(crossbeam_channel::TrySendError::Disconnected(_)) = audio_tx.try_send(sample) {
+            audio_alive = false;
+        }
+    });
+
+    if let Some(tx) = midi_tx {
+        machine.drain_midi_out(|events| {
+            for &(byte, cycle) in events {
+                midi_stream.feed(&[byte], |live_event| {
+                    midi_encode_buf.clear();
+                    if live_event.write_std(&mut *midi_encode_buf).is_ok() {
+                        let _ = tx.try_send((midi_encode_buf.clone(), cycle));
+                    }
+                });
+            }
+        });
+    } else {
+        machine.drain_midi_out(|_| {});
+    }
+
+    if !audio_alive {
+        Err(())
+    } else {
+        Ok(vblank_occurred)
+    }
+}
+
+#[inline]
+fn send_frame(video: &VideoRenderer, frame_tx: &Sender<EmulationFrame>) {
+    let frame = EmulationFrame {
+        width: video.width(),
+        height: video.height(),
+        buffer: video.frame_buffer().into(),
+    };
+    let _ = frame_tx.try_send(frame);
+}
+
+fn dump_snapshot(machine: &Machine, video: &VideoRenderer, name: &str) {
+    let json_name = format!("{}.json", name);
+    let png_name = format!("{}.png", name);
+
+    if let Ok(file) = std::fs::File::create(&json_name) {
+        let writer = std::io::BufWriter::new(file);
+        let _ = serde_json::to_writer_pretty(writer, &machine.state());
+    }
+
+    let w = video.width();
+    let h = video.height();
+    let buffer = video.frame_buffer();
+
+    let _ = image::save_buffer(&png_name, buffer, w, h, image::ExtendedColorType::Rgba8);
 }
