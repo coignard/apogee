@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.2.0
+
+### Added
+
+- MIDI output via `--midi [port]` flag: routes bytes written to user PPI port A through a timing-accurate output thread; port may be specified by name or zero-based index
+- `--midi-list` flag to enumerate available MIDI output ports
+- `MidiInterface` peripheral in `core::peripherals::midi`: captures port A bytes on rising edge of strobe bit (port C bit 0) into a timestamped ring buffer of up to 256 entries
+- `UserPeripheral` enum in `core::peripherals` wrapping `RomDisk`, `MidiInterface`, and `None`; replaces the direct `romdisk` field on `Bus` with a unified `user_slot`
+- `Machine::plug_user_peripheral()` to attach a `UserPeripheral` at runtime
+- `Machine::drain_midi_out()` to drain the MIDI output buffer via callback
+- `current_cycle` field on `Bus` propagates the running CPU cycle counter into peripheral writes for MIDI timestamping
+- MIDI output thread with `SpinSleeper`-based cycle-accurate scheduling: events are dispatched at their recorded cycle timestamp relative to a live anchor; anchor resets when lag exceeds three frame durations
+- All Notes Off and All Sound Off sent to all 16 channels on MIDI connection teardown
+- Virtual MIDI port creation on Unix when the requested port name is not found among existing ports
+- `AppConfig` struct consolidating `App::new()` parameters (`debug_mode`, `recorder`, `player`, `rom_name`, `midi_out`)
+- `App::cycle()` private method encapsulating one machine tick, audio push, and MIDI drain
+- `--rka` and `--rom` named flags as alternatives to the positional `file` argument; positional argument continues to dispatch by extension as before
+- `midir`, `midly`, and `spin_sleep` dependencies added
+
+### Changed
+
+- `Bus` field `romdisk: RomDisk` replaced by `user_slot: UserPeripheral`; `port_a_out` is now forwarded to `user_slot.update()` alongside `port_b`, `port_c`, and `current_cycle`
+- `Machine::load_rom()` renamed to `Machine::load_rka()`; ROM disk loading path removed from it and moved to `plug_user_peripheral()`
+- ROM disk and MIDI interface are mutually exclusive; specifying both simultaneously is rejected at startup with a descriptive error
+- Audio disconnection is now detected and propagated correctly inside `App::cycle()`, unifying the error path between step-frame and normal execution
+
 ## 0.1.6
 
 ### Fixed
