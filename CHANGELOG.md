@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.2
+
+### Fixed
+
+- MIDI thread now named `"midi"` and joined on exit, preventing detached thread teardown
+- MIDI channel switched from `bounded(4096)` to `unbounded` to prevent event drops under burst load
+- MIDI output now sends individual Note Off messages for all active notes before All Notes Off and All Sound Off on teardown, eliminating stuck notes when the connection closes mid-playback
+- Stale events are now drained and tracked before the anchor reset on lag recovery, preventing missed note-offs from discarded messages
+- MIDI sync anchor now initialised with a 1.5-frame presentation delay offset, eliminating chunking jitter on the first burst of events
+- `try_send` replaced with `send` in `emu_cycle` for MIDI messages, preventing silent event drops when the receiver is momentarily slow
+- `WINDOW_SCALE`, `AUDIO_LATENCY_FRAMES_NUMER/DENOM`, and `MIDI_SYNC_LAG_FRAMES` extracted as named constants, replacing inline magic numbers
+
 ## 0.2.1
 
 ### Changed
