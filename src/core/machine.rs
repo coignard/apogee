@@ -23,6 +23,7 @@ use super::audio::AudioMixer;
 use super::bus::Bus;
 use super::chips::kr580vg75::Kr580Vg75;
 pub use super::peripherals::keyboard::Key;
+use crate::core::bus::memory_map;
 use crate::core::peripherals::UserPeripheral;
 
 pub const MASTER_CLOCK_HZ: u32 = 16_000_000;
@@ -63,7 +64,7 @@ pub const MAX_FRAME_CYCLES: u32 = ((MAX_CHARS_PER_ROW + MAX_HR_CHARS)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MachineError {
     InvalidRkaLength,
-    InvalidAddressRange,
+    MemoryOverflow,
     FileTooShort,
     ChecksumMissing,
     ChecksumMismatch { expected: u16, got: u16 },
@@ -73,7 +74,7 @@ impl fmt::Display for MachineError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidRkaLength => write!(f, "file is too short to be a valid RKA"),
-            Self::InvalidAddressRange => write!(f, "start address is greater than end address"),
+            Self::MemoryOverflow => write!(f, "program will not fit into available memory"),
             Self::FileTooShort => write!(f, "file is shorter than the expected data length"),
             Self::ChecksumMissing => write!(f, "checksum block missing"),
             Self::ChecksumMismatch { expected, got } => {
@@ -137,34 +138,45 @@ impl Machine {
         }
     }
 
-    pub fn validate_rka(payload: &[u8], force: bool) -> Result<(), MachineError> {
+    pub fn validate_rka(payload: &[u8], force: bool) -> Result<(u16, &[u8]), MachineError> {
         if payload.len() < RKA_HEADER_SIZE {
             return Err(MachineError::InvalidRkaLength);
         }
 
-        let (header, payload_data) = payload.split_at(RKA_HEADER_SIZE);
-        let start_addr = u16::from_be_bytes(header[0..2].try_into().unwrap());
-        let end_addr = u16::from_be_bytes(header[2..4].try_into().unwrap());
+        let start_addr = u16::from_be_bytes([payload[0], payload[1]]);
+        let header_val = u16::from_be_bytes([payload[2], payload[3]]);
+        let payload_len = payload.len().saturating_sub(RKA_HEADER_SIZE);
 
-        if start_addr > end_addr && !force {
-            return Err(MachineError::InvalidAddressRange);
-        }
+        let size = if start_addr <= header_val {
+            let calc_len = (header_val - start_addr) as usize + 1;
+            let diff_calc = payload_len.saturating_sub(calc_len);
+            let diff_direct = payload_len.saturating_sub(header_val as usize);
 
-        let expected_len = if start_addr <= end_addr {
-            (end_addr - start_addr) as usize + 1
+            if diff_direct < diff_calc {
+                header_val as usize
+            } else {
+                calc_len
+            }
         } else {
-            payload_data.len()
+            header_val as usize
         };
 
-        if payload_data.len() < expected_len && !force {
+        if start_addr as usize + size > memory_map::RAM_END as usize + 1 {
+            return Err(MachineError::MemoryOverflow);
+        }
+
+        let payload_data = &payload[RKA_HEADER_SIZE..];
+
+        if payload_data.len() < size && !force {
             return Err(MachineError::FileTooShort);
         }
 
-        let len = expected_len.min(payload_data.len());
+        let len = size.min(payload_data.len());
         let (data, tail) = payload_data.split_at(len);
 
         if !force {
-            let (mut cs_hi_excluding_last, mut cs_lo) = (0u8, 0u8);
+            let mut cs_lo = 0u8;
+            let mut cs_hi_excluding_last = 0u8;
             let mut cs_hi_including_last = 0u8;
 
             if let Some((&last_byte, body)) = data.split_last() {
@@ -183,27 +195,33 @@ impl Machine {
                 cs_lo = final_lo;
             }
 
-            let checksum_excluding_last = u16::from_be_bytes([cs_hi_excluding_last, cs_lo]);
-            let checksum_including_last = u16::from_be_bytes([cs_hi_including_last, cs_lo]);
+            let expected_cs_excluding_last = u16::from_be_bytes([cs_hi_excluding_last, cs_lo]);
+            let expected_cs_including_last = u16::from_be_bytes([cs_hi_including_last, cs_lo]);
 
             let stored_cs = tail
                 .windows(3)
                 .find(|w| w[0] == TAPE_SYNC_BYTE)
                 .map(|w| &w[1..3])
-                .unwrap_or_else(|| &tail[tail.len().saturating_sub(2)..])
+                .unwrap_or_else(|| {
+                    if tail.len() >= 2 {
+                        &tail[tail.len() - 2..]
+                    } else {
+                        &[]
+                    }
+                })
                 .try_into()
                 .map(u16::from_be_bytes)
                 .map_err(|_| MachineError::ChecksumMissing)?;
 
-            if stored_cs != checksum_excluding_last && stored_cs != checksum_including_last {
+            if stored_cs != expected_cs_excluding_last && stored_cs != expected_cs_including_last {
                 return Err(MachineError::ChecksumMismatch {
-                    expected: checksum_excluding_last,
+                    expected: expected_cs_including_last,
                     got: stored_cs,
                 });
             }
         }
 
-        Ok(())
+        Ok((start_addr, data))
     }
 
     pub fn load_rka(
@@ -212,20 +230,7 @@ impl Machine {
         autorun: bool,
         force: bool,
     ) -> Result<(), MachineError> {
-        Self::validate_rka(payload, force)?;
-
-        let (header, payload_data) = payload.split_at(RKA_HEADER_SIZE);
-        let start_addr = u16::from_be_bytes(header[0..2].try_into().unwrap());
-        let end_addr = u16::from_be_bytes(header[2..4].try_into().unwrap());
-
-        let expected_len = if start_addr <= end_addr {
-            (end_addr - start_addr) as usize + 1
-        } else {
-            payload_data.len()
-        };
-
-        let len = expected_len.min(payload_data.len());
-        let (data, _) = payload_data.split_at(len);
+        let (start_addr, data) = Self::validate_rka(payload, force)?;
 
         if autorun {
             for _ in (0..AUTORUN_DELAY_CYCLES).step_by(DEFAULT_FRAME_CYCLES as usize) {
@@ -324,5 +329,105 @@ impl Machine {
         self.bus.vg75.set_inte(inte);
 
         (cycles_after - cycles_before) as u32
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rka_checksum_validation() {
+        let payload_data: [u8; 3] = [0x10, 0x20, 0x30];
+
+        let mut dump_size_header_cs_incl = Vec::new();
+        dump_size_header_cs_incl.extend_from_slice(&0x0100u16.to_be_bytes());
+        dump_size_header_cs_incl.extend_from_slice(&0x0003u16.to_be_bytes());
+        dump_size_header_cs_incl.extend_from_slice(&payload_data);
+        dump_size_header_cs_incl.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x60, 0x60]);
+
+        assert!(Machine::validate_rka(&dump_size_header_cs_incl, false).is_ok());
+
+        let mut dump_end_addr_header_cs_incl = Vec::new();
+        dump_end_addr_header_cs_incl.extend_from_slice(&0x0000u16.to_be_bytes());
+        dump_end_addr_header_cs_incl.extend_from_slice(&0x0002u16.to_be_bytes());
+        dump_end_addr_header_cs_incl.extend_from_slice(&payload_data);
+        dump_end_addr_header_cs_incl.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x60, 0x60]);
+
+        assert!(Machine::validate_rka(&dump_end_addr_header_cs_incl, false).is_ok());
+
+        let mut dump_end_addr_header_cs_excl = Vec::new();
+        dump_end_addr_header_cs_excl.extend_from_slice(&0x0000u16.to_be_bytes());
+        dump_end_addr_header_cs_excl.extend_from_slice(&0x0002u16.to_be_bytes());
+        dump_end_addr_header_cs_excl.extend_from_slice(&payload_data);
+        dump_end_addr_header_cs_excl.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x30, 0x60]);
+
+        assert!(Machine::validate_rka(&dump_end_addr_header_cs_excl, false).is_ok());
+
+        let mut dump_invalid_checksum = dump_end_addr_header_cs_incl.clone();
+        let len = dump_invalid_checksum.len();
+        dump_invalid_checksum[len - 1] = 0x99;
+        dump_invalid_checksum[len - 2] = 0x99;
+
+        assert!(matches!(
+            Machine::validate_rka(&dump_invalid_checksum, false),
+            Err(MachineError::ChecksumMismatch { .. })
+        ));
+
+        let mut dump_memory_overflow = Vec::new();
+        dump_memory_overflow.extend_from_slice(&memory_map::RAM_END.to_be_bytes());
+        dump_memory_overflow.extend_from_slice(&0x0002u16.to_be_bytes());
+        dump_memory_overflow.extend_from_slice(&[0x00, 0x00]);
+
+        assert!(matches!(
+            Machine::validate_rka(&dump_memory_overflow, false),
+            Err(MachineError::MemoryOverflow)
+        ));
+    }
+
+    #[test]
+    fn test_rka_assets_checksums() {
+        let load_asset = |name: &str| -> Vec<u8> {
+            let path = format!("{}/tests/assets/{}", env!("CARGO_MANIFEST_DIR"), name);
+            std::fs::read(&path).unwrap_or_else(|_| panic!("Missing test asset: {}", path))
+        };
+
+        let valid_files = ["dvigalka.rka", "proverka.rka"];
+        for file in valid_files {
+            let data = load_asset(file);
+            assert!(
+                Machine::validate_rka(&data, false).is_ok(),
+                "File '{}' should have a valid checksum",
+                file
+            );
+        }
+
+        let invalid_files = [
+            ("ducks.rka", 0x2061),
+            ("kindzadza.rka", 0x2FED),
+            ("kletavt.rka", 0x4E9A),
+            ("rc.rka", 0x77D4),
+            ("robocop.rka", 0x4B5E),
+            ("tia2.rka", 0xF163),
+        ];
+
+        for (file, expected_got) in invalid_files {
+            let data = load_asset(file);
+            let result = Machine::validate_rka(&data, false);
+
+            match result {
+                Err(MachineError::ChecksumMismatch { got, .. }) => {
+                    assert_eq!(
+                        got, expected_got,
+                        "File '{}' stored checksum mismatch: expected got={:04X}, actual got={:04X}",
+                        file, expected_got, got
+                    );
+                }
+                _ => panic!(
+                    "File '{}' should have failed with ChecksumMismatch, got={:?}",
+                    file, result
+                ),
+            }
+        }
     }
 }
