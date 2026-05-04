@@ -1,17 +1,17 @@
 {
-  "frame": 70736804,
-  "pc": 65167,
+  "frame": 22037866,
+  "pc": 65171,
   "bus": {
-    "ram_hash": "61f7981518265c7cf427195cab6c30786f322c620cf7abe64108baee0871db94",
+    "ram_hash": "c6c53166ef9afa2b3317c983ad93056d883f88a008130b1ac3b0bcf8d243f9d0",
     "vi53": {
       "channels": [
         {
           "mode": 7,
           "rw_mode": "LsbThenMsb",
-          "reload": 1285,
-          "reload_latch": 1285,
+          "reload": 2056,
+          "reload_latch": 2056,
           "reload_pending": false,
-          "counter": 256,
+          "counter": 579,
           "latch": 0,
           "phase": "Lsb",
           "out": true,
@@ -82,8 +82,8 @@
       "burst_space": 7,
       "cur_burst_pos": 0,
       "dma_timer": 0,
-      "cursor_x": 18,
-      "cursor_y": 17,
+      "cursor_x": 11,
+      "cursor_y": 6,
       "row_buffer": [],
       "fifo": [
         0,
@@ -117,7 +117,7 @@
       "attr_gpa0": false,
       "attr_gpa1": false,
       "is_blanked_to_end_of_screen": false,
-      "parsed_frame_hash": "aa1b5eda2f5bbe2a28a05630780b06a8ce30620407a40be9b9433731df0d0aae",
+      "parsed_frame_hash": "503950eb5b8a3707bd2a364ff4dd1e5a3c350aaeebab32020c36d1eaa74c8357",
       "cpu_inte": false,
       "cur_font_bank": false,
       "prev_row": 30,
@@ -187,11 +187,11 @@
         false,
         false
       ],
-      "crt_x": 5,
+      "crt_x": 1,
       "crt_scan_line": 0,
       "crt_scan_row": 30,
       "crt_cur_row": 30,
-      "frame_count": 1990
+      "frame_count": 620
     },
     "sys_vv55": {
       "control": 138,
