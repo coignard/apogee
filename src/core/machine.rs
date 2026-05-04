@@ -149,11 +149,10 @@ impl Machine {
 
         let size = if start_addr <= header_val {
             let calc_len = (header_val - start_addr) as usize + 1;
-            let diff_calc = payload_len.saturating_sub(calc_len);
-            let diff_direct = payload_len.saturating_sub(header_val as usize);
+            let direct_len = header_val as usize;
 
-            if diff_direct < diff_calc {
-                header_val as usize
+            if payload_len.abs_diff(direct_len) < payload_len.abs_diff(calc_len) {
+                direct_len
             } else {
                 calc_len
             }
@@ -176,46 +175,37 @@ impl Machine {
 
         if !force {
             let mut cs_lo = 0u8;
-            let mut cs_hi_excluding_last = 0u8;
-            let mut cs_hi_including_last = 0u8;
+            let mut cs_hi = 0u8;
 
             if let Some((&last_byte, body)) = data.split_last() {
                 for &b in body {
                     let (new_lo, carry) = cs_lo.overflowing_add(b);
                     cs_lo = new_lo;
-                    cs_hi_excluding_last = cs_hi_excluding_last
-                        .wrapping_add(b)
-                        .wrapping_add(u8::from(carry));
+                    cs_hi = cs_hi.wrapping_add(b).wrapping_add(u8::from(carry));
                 }
-
-                let (final_lo, carry) = cs_lo.overflowing_add(last_byte);
-                cs_hi_including_last = cs_hi_excluding_last
-                    .wrapping_add(last_byte)
-                    .wrapping_add(u8::from(carry));
-                cs_lo = final_lo;
+                cs_lo = cs_lo.wrapping_add(last_byte);
             }
 
-            let expected_cs_excluding_last = u16::from_be_bytes([cs_hi_excluding_last, cs_lo]);
-            let expected_cs_including_last = u16::from_be_bytes([cs_hi_including_last, cs_lo]);
+            let expected_cs = u16::from_be_bytes([cs_hi, cs_lo]);
 
-            let stored_cs = tail
+            let stored_cs_slice = tail
                 .windows(3)
                 .find(|w| w[0] == TAPE_SYNC_BYTE)
                 .map(|w| &w[1..3])
-                .unwrap_or_else(|| {
-                    if tail.len() >= 2 {
-                        &tail[tail.len() - 2..]
-                    } else {
-                        &[]
-                    }
+                .or_else(|| {
+                    let offset = tail.len().checked_sub(2)?;
+                    tail.get(offset..)
                 })
+                .unwrap_or(&[]);
+
+            let stored_cs = stored_cs_slice
                 .try_into()
                 .map(u16::from_be_bytes)
                 .map_err(|_| MachineError::ChecksumMissing)?;
 
-            if stored_cs != expected_cs_excluding_last && stored_cs != expected_cs_including_last {
+            if stored_cs != expected_cs {
                 return Err(MachineError::ChecksumMismatch {
-                    expected: expected_cs_including_last,
+                    expected: expected_cs,
                     got: stored_cs,
                 });
             }
@@ -340,38 +330,32 @@ mod tests {
     fn test_rka_checksum_validation() {
         let payload_data: [u8; 3] = [0x10, 0x20, 0x30];
 
-        let mut dump_size_header_cs_incl = Vec::new();
-        dump_size_header_cs_incl.extend_from_slice(&0x0100u16.to_be_bytes());
-        dump_size_header_cs_incl.extend_from_slice(&0x0003u16.to_be_bytes());
-        dump_size_header_cs_incl.extend_from_slice(&payload_data);
-        dump_size_header_cs_incl.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x60, 0x60]);
+        let mut dump_size_header = Vec::new();
+        dump_size_header.extend_from_slice(&0x0100u16.to_be_bytes());
+        dump_size_header.extend_from_slice(&0x0003u16.to_be_bytes());
+        dump_size_header.extend_from_slice(&payload_data);
+        dump_size_header.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x30, 0x60]);
 
-        assert!(Machine::validate_rka(&dump_size_header_cs_incl, false).is_ok());
+        assert!(Machine::validate_rka(&dump_size_header, false).is_ok());
 
-        let mut dump_end_addr_header_cs_incl = Vec::new();
-        dump_end_addr_header_cs_incl.extend_from_slice(&0x0000u16.to_be_bytes());
-        dump_end_addr_header_cs_incl.extend_from_slice(&0x0002u16.to_be_bytes());
-        dump_end_addr_header_cs_incl.extend_from_slice(&payload_data);
-        dump_end_addr_header_cs_incl.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x60, 0x60]);
+        let mut dump_end_addr_header = Vec::new();
+        dump_end_addr_header.extend_from_slice(&0x0000u16.to_be_bytes());
+        dump_end_addr_header.extend_from_slice(&0x0002u16.to_be_bytes());
+        dump_end_addr_header.extend_from_slice(&payload_data);
+        dump_end_addr_header.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x30, 0x60]);
 
-        assert!(Machine::validate_rka(&dump_end_addr_header_cs_incl, false).is_ok());
+        assert!(Machine::validate_rka(&dump_end_addr_header, false).is_ok());
 
-        let mut dump_end_addr_header_cs_excl = Vec::new();
-        dump_end_addr_header_cs_excl.extend_from_slice(&0x0000u16.to_be_bytes());
-        dump_end_addr_header_cs_excl.extend_from_slice(&0x0002u16.to_be_bytes());
-        dump_end_addr_header_cs_excl.extend_from_slice(&payload_data);
-        dump_end_addr_header_cs_excl.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x30, 0x60]);
-
-        assert!(Machine::validate_rka(&dump_end_addr_header_cs_excl, false).is_ok());
-
-        let mut dump_invalid_checksum = dump_end_addr_header_cs_incl.clone();
+        let mut dump_invalid_checksum = dump_end_addr_header.clone();
         let len = dump_invalid_checksum.len();
-        dump_invalid_checksum[len - 1] = 0x99;
-        dump_invalid_checksum[len - 2] = 0x99;
+        dump_invalid_checksum[len - 2..].copy_from_slice(&[0x99, 0x99]);
 
         assert!(matches!(
             Machine::validate_rka(&dump_invalid_checksum, false),
-            Err(MachineError::ChecksumMismatch { .. })
+            Err(MachineError::ChecksumMismatch {
+                expected: 0x3060,
+                got: 0x9999
+            })
         ));
 
         let mut dump_memory_overflow = Vec::new();
@@ -395,11 +379,7 @@ mod tests {
         let valid_files = ["dvigalka.rka", "proverka.rka"];
         for file in valid_files {
             let data = load_asset(file);
-            assert!(
-                Machine::validate_rka(&data, false).is_ok(),
-                "File '{}' should have a valid checksum",
-                file
-            );
+            assert!(Machine::validate_rka(&data, false).is_ok());
         }
 
         let invalid_files = [
@@ -417,16 +397,9 @@ mod tests {
 
             match result {
                 Err(MachineError::ChecksumMismatch { got, .. }) => {
-                    assert_eq!(
-                        got, expected_got,
-                        "File '{}' stored checksum mismatch: expected got={:04X}, actual got={:04X}",
-                        file, expected_got, got
-                    );
+                    assert_eq!(got, expected_got);
                 }
-                _ => panic!(
-                    "File '{}' should have failed with ChecksumMismatch, got={:?}",
-                    file, result
-                ),
+                _ => panic!("Expected ChecksumMismatch for file {}", file),
             }
         }
     }
