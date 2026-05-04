@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.3
+
+### Changed
+
+- RKA checksum validation simplified to exclude the last byte from the checksum accumulation, matching authentic Monitor behaviour; the previous dual-variant check (including/excluding last byte) is removed
+- Size heuristic in `validate_rka` switched from `saturating_sub`-based comparison to `abs_diff`, making the intent explicit
+- Checksum byte extraction uses `checked_sub` + `get` instead of a manual length guard, eliminating the redundant fallback branch
+- `ChecksumMismatch` error now always reports the single canonical expected value; test assertions updated to match exact expected/got fields
+
 ## 0.2.2
 
 ### Fixed
