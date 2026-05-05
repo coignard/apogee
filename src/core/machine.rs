@@ -318,7 +318,11 @@ impl Machine {
         let (inte, _) = self.cpu.immutable_registers().get_interrupt_mode();
         self.bus.vg75.set_inte(inte);
 
-        (cycles_after - cycles_before) as u32
+        if self.cpu.is_halted() {
+            4
+        } else {
+            (cycles_after - cycles_before) as u32
+        }
     }
 }
 
