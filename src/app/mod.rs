@@ -181,13 +181,13 @@ impl App {
                         let mut fast_forward = false;
 
                         loop {
-                            let msg = if queue.is_empty() {
+                            let msg = if let Some(m) = queue.pop_front() {
+                                m
+                            } else {
                                 match rx.recv() {
                                     Ok(m) => m,
                                     Err(_) => break,
                                 }
-                            } else {
-                                queue.pop_front().unwrap()
                             };
 
                             match msg {
@@ -264,20 +264,25 @@ impl App {
                                             > sync_lag_threshold
                                         {
                                             track_note(&midi_data, &mut active_notes);
-                                            while let Ok(stale) = rx.try_recv() {
+
+                                            let stale_iter = std::iter::from_fn(|| {
+                                                queue.pop_front().or_else(|| rx.try_recv().ok())
+                                            });
+
+                                            for stale in stale_iter {
                                                 match stale {
                                                     MidiThreadMsg::Event(d, _) => {
-                                                        track_note(&d, &mut active_notes);
+                                                        track_note(&d, &mut active_notes)
+                                                    }
+                                                    MidiThreadMsg::SetFastForward(ff) => {
+                                                        fast_forward = ff
                                                     }
                                                     MidiThreadMsg::HardReset => break,
-                                                    MidiThreadMsg::SetFastForward(ff) => {
-                                                        fast_forward = ff;
-                                                    }
                                                 }
                                             }
+
                                             silence_active_notes(&mut active_notes, &mut midi_conn);
                                             anchor = None;
-                                            queue.clear();
                                         } else {
                                             track_note(&midi_data, &mut active_notes);
                                             let _ = midi_conn.send(&midi_data);
