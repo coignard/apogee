@@ -144,21 +144,13 @@ impl Machine {
         }
 
         let start_addr = u16::from_be_bytes([payload[0], payload[1]]);
-        let header_val = u16::from_be_bytes([payload[2], payload[3]]);
-        let payload_len = payload.len().saturating_sub(RKA_HEADER_SIZE);
+        let end_addr = u16::from_be_bytes([payload[2], payload[3]]);
 
-        let size = if start_addr <= header_val {
-            let calc_len = (header_val - start_addr) as usize + 1;
-            let direct_len = header_val as usize;
+        if end_addr < start_addr {
+            return Err(MachineError::InvalidRkaLength);
+        }
 
-            if payload_len.abs_diff(direct_len) < payload_len.abs_diff(calc_len) {
-                direct_len
-            } else {
-                calc_len
-            }
-        } else {
-            header_val as usize
-        };
+        let size = (end_addr - start_addr) as usize + 1;
 
         if start_addr as usize + size > memory_map::RAM_END as usize + 1 {
             return Err(MachineError::MemoryOverflow);
@@ -334,23 +326,15 @@ mod tests {
     fn test_rka_checksum_validation() {
         let payload_data: [u8; 3] = [0x10, 0x20, 0x30];
 
-        let mut dump_size_header = Vec::new();
-        dump_size_header.extend_from_slice(&0x0100u16.to_be_bytes());
-        dump_size_header.extend_from_slice(&0x0003u16.to_be_bytes());
-        dump_size_header.extend_from_slice(&payload_data);
-        dump_size_header.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x30, 0x60]);
+        let mut valid_dump = Vec::new();
+        valid_dump.extend_from_slice(&0x0000u16.to_be_bytes());
+        valid_dump.extend_from_slice(&0x0002u16.to_be_bytes());
+        valid_dump.extend_from_slice(&payload_data);
+        valid_dump.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x30, 0x60]);
 
-        assert!(Machine::validate_rka(&dump_size_header, false).is_ok());
+        assert!(Machine::validate_rka(&valid_dump, false).is_ok());
 
-        let mut dump_end_addr_header = Vec::new();
-        dump_end_addr_header.extend_from_slice(&0x0000u16.to_be_bytes());
-        dump_end_addr_header.extend_from_slice(&0x0002u16.to_be_bytes());
-        dump_end_addr_header.extend_from_slice(&payload_data);
-        dump_end_addr_header.extend_from_slice(&[0x00, 0x00, TAPE_SYNC_BYTE, 0x30, 0x60]);
-
-        assert!(Machine::validate_rka(&dump_end_addr_header, false).is_ok());
-
-        let mut dump_invalid_checksum = dump_end_addr_header.clone();
+        let mut dump_invalid_checksum = valid_dump.clone();
         let len = dump_invalid_checksum.len();
         dump_invalid_checksum[len - 2..].copy_from_slice(&[0x99, 0x99]);
 
