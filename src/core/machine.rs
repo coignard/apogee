@@ -348,13 +348,13 @@ mod tests {
 
         let mut dump_memory_overflow = Vec::new();
         dump_memory_overflow.extend_from_slice(&memory_map::RAM_END.to_be_bytes());
-        dump_memory_overflow.extend_from_slice(&0x0002u16.to_be_bytes());
+        dump_memory_overflow.extend_from_slice(&(memory_map::RAM_END + 1).to_be_bytes());
         dump_memory_overflow.extend_from_slice(&[0x00, 0x00]);
 
         assert!(matches!(
             Machine::validate_rka(&dump_memory_overflow, false),
             Err(MachineError::MemoryOverflow)
-        ));
+));
     }
 
     #[test]
