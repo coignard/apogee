@@ -2,30 +2,142 @@
   "metadata": {
     "rom_name": "ducks",
     "rom_sha256": "262b653bb227ae5544e35e3fa0707dc43f06ebd36f167658683fd65ec239c788",
-    "autorun": true,
-    "sample_rate": 44100,
+    "autorun": false,
+    "sample_rate": 48000,
     "color_mode": "Color",
     "is_crt": false
   },
   "events": [
     {
-      "frame": 9985480,
+      "frame": 1243069,
       "action": {
-        "TakeSnapshot": {
-          "name": "ducks_frame_9985480"
+        "KeyDown": {
+          "key": "G"
         }
       }
     },
     {
-      "frame": 20925142,
+      "frame": 1385253,
       "action": {
-        "TakeSnapshot": {
-          "name": "ducks_frame_20925142"
+        "KeyUp": {
+          "key": "G"
         }
       }
     },
     {
-      "frame": 29990227,
+      "frame": 2025094,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 2165447,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 8684472,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_8684472"
+        }
+      }
+    },
+    {
+      "frame": 14671911,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_14671911"
+        }
+      }
+    },
+    {
+      "frame": 14699889,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_14699889"
+        }
+      }
+    },
+    {
+      "frame": 14783829,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_14783829"
+        }
+      }
+    },
+    {
+      "frame": 15063609,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_15063609"
+        }
+      }
+    },
+    {
+      "frame": 15315417,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_15315417"
+        }
+      }
+    },
+    {
+      "frame": 15343399,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_15343399"
+        }
+      }
+    },
+    {
+      "frame": 18393079,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_18393079"
+        }
+      }
+    },
+    {
+      "frame": 29248795,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_29248795"
+        }
+      }
+    },
+    {
+      "frame": 47211096,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_47211096"
+        }
+      }
+    },
+    {
+      "frame": 55212998,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_55212998"
+        }
+      }
+    },
+    {
+      "frame": 92704414,
+      "action": {
+        "TakeSnapshot": {
+          "name": "ducks_frame_92704414"
+        }
+      }
+    },
+    {
+      "frame": 93963448,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -33,7 +145,7 @@
       }
     },
     {
-      "frame": 30158100,
+      "frame": 94103346,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -41,42 +153,18 @@
       }
     },
     {
-      "frame": 37040854,
+      "frame": 163014807,
       "action": {
         "TakeSnapshot": {
-          "name": "ducks_frame_37040854"
+          "name": "ducks_frame_163014807"
         }
       }
     },
     {
-      "frame": 47448915,
+      "frame": 379317875,
       "action": {
         "TakeSnapshot": {
-          "name": "ducks_frame_47448915"
-        }
-      }
-    },
-    {
-      "frame": 57745072,
-      "action": {
-        "KeyDown": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 57884959,
-      "action": {
-        "KeyUp": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 102678805,
-      "action": {
-        "TakeSnapshot": {
-          "name": "ducks_frame_102678805"
+          "name": "ducks_frame_379317875"
         }
       }
     }
