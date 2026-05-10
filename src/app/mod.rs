@@ -37,6 +37,8 @@ use crate::app::keyboard::map_keycode;
 
 use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_HZ, Machine};
+use apogee_rs::core::peripherals::midi::MidiInterface;
+use apogee_rs::core::peripherals::romdisk::RomDisk;
 use apogee_rs::core::peripherals::UserPeripheral;
 use apogee_rs::core::peripherals::keyboard::Key;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
@@ -79,13 +81,11 @@ impl MachineConfig {
         }
 
         if let Some(rom) = &self.romdisk {
-            let mut romdisk = apogee_rs::core::peripherals::romdisk::RomDisk::new();
+            let mut romdisk = RomDisk::new();
             romdisk.load(rom);
             machine.plug_user_peripheral(UserPeripheral::RomDisk(romdisk));
         } else if self.midi_enabled {
-            machine.plug_user_peripheral(UserPeripheral::Midi(
-                apogee_rs::core::peripherals::midi::MidiInterface::new(),
-            ));
+            machine.plug_user_peripheral(UserPeripheral::Midi(MidiInterface::new()));
         }
 
         machine
@@ -224,10 +224,16 @@ impl App {
                                         + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
 
                                     let mut aborted = false;
-                                    while Instant::now() < target_time {
-                                        let remaining = target_time.duration_since(Instant::now());
+                                    loop {
+                                        let current_now = Instant::now();
+                                        if current_now >= target_time {
+                                            break;
+                                        }
+
+                                        let remaining = target_time.duration_since(current_now);
                                         if remaining > Duration::from_millis(2) {
-                                            match rx.recv_timeout(Duration::from_millis(1)) {
+                                            let deadline = target_time - Duration::from_millis(2);
+                                            match rx.recv_deadline(deadline) {
                                                 Ok(MidiThreadMsg::HardReset) => {
                                                     silence_active_notes(
                                                         &mut active_notes,
@@ -252,10 +258,15 @@ impl App {
                                                 Ok(event @ MidiThreadMsg::Event(..)) => {
                                                     queue.push_back(event);
                                                 }
-                                                Err(_) => {}
+                                                Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
+                                                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                                                    aborted = true;
+                                                    break;
+                                                }
                                             }
                                         } else {
                                             sleeper.sleep_until(target_time);
+                                            break;
                                         }
                                     }
 
@@ -265,17 +276,16 @@ impl App {
                                         {
                                             track_note(&midi_data, &mut active_notes);
 
-                                            let stale_iter = std::iter::from_fn(|| {
-                                                queue.pop_front().or_else(|| rx.try_recv().ok())
-                                            });
-
-                                            for stale in stale_iter {
+                                            while let Some(stale) = queue
+                                                .pop_front()
+                                                .or_else(|| rx.try_recv().ok())
+                                            {
                                                 match stale {
                                                     MidiThreadMsg::Event(d, _) => {
-                                                        track_note(&d, &mut active_notes)
+                                                        track_note(&d, &mut active_notes);
                                                     }
                                                     MidiThreadMsg::SetFastForward(ff) => {
-                                                        fast_forward = ff
+                                                        fast_forward = ff;
                                                     }
                                                     MidiThreadMsg::HardReset => break,
                                                 }
