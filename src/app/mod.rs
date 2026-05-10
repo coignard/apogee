@@ -37,10 +37,10 @@ use crate::app::keyboard::map_keycode;
 
 use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_HZ, Machine};
-use apogee_rs::core::peripherals::midi::MidiInterface;
-use apogee_rs::core::peripherals::romdisk::RomDisk;
 use apogee_rs::core::peripherals::UserPeripheral;
 use apogee_rs::core::peripherals::keyboard::Key;
+use apogee_rs::core::peripherals::midi::MidiInterface;
+use apogee_rs::core::peripherals::romdisk::RomDisk;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
 const MIDI_STATUS_NOTE_OFF: u8 = 0x80;
