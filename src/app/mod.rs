@@ -116,6 +116,7 @@ enum EmulationError {
 enum MidiThreadMsg {
     Event(Vec<u8>, u64),
     HardReset,
+    SetFastForward(bool),
 }
 
 pub struct AppConfig {
@@ -176,10 +177,38 @@ impl App {
                         let sleeper = SpinSleeper::default();
                         let mut anchor: Option<(Instant, u64)> = None;
                         let mut active_notes = [0u128; MIDI_CHANNELS_COUNT as usize];
+                        let mut queue = std::collections::VecDeque::new();
+                        let mut fast_forward = false;
 
-                        while let Ok(msg) = rx.recv() {
+                        loop {
+                            let msg = if queue.is_empty() {
+                                match rx.recv() {
+                                    Ok(m) => m,
+                                    Err(_) => break,
+                                }
+                            } else {
+                                queue.pop_front().unwrap()
+                            };
+
                             match msg {
+                                MidiThreadMsg::SetFastForward(ff) => {
+                                    fast_forward = ff;
+                                    if !ff {
+                                        anchor = None;
+                                    }
+                                }
+                                MidiThreadMsg::HardReset => {
+                                    silence_active_notes(&mut active_notes, &mut midi_conn);
+                                    anchor = None;
+                                    queue.clear();
+                                }
                                 MidiThreadMsg::Event(midi_data, target_cycle) => {
+                                    if fast_forward {
+                                        track_note(&midi_data, &mut active_notes);
+                                        let _ = midi_conn.send(&midi_data);
+                                        continue;
+                                    }
+
                                     let now = Instant::now();
                                     let (anchor_time, anchor_cycle) =
                                         *anchor.get_or_insert_with(|| {
@@ -194,31 +223,66 @@ impl App {
                                     let target_time = anchor_time
                                         + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
 
-                                    if target_time > now {
-                                        sleeper.sleep_until(target_time);
-                                        track_note(&midi_data, &mut active_notes);
-                                        let _ = midi_conn.send(&midi_data);
-                                    } else if now.duration_since(target_time) > sync_lag_threshold {
-                                        track_note(&midi_data, &mut active_notes);
-
-                                        while let Ok(stale_msg) = rx.try_recv() {
-                                            match stale_msg {
-                                                MidiThreadMsg::Event(stale_data, _) => {
-                                                    track_note(&stale_data, &mut active_notes);
+                                    let mut aborted = false;
+                                    while Instant::now() < target_time {
+                                        let remaining = target_time.duration_since(Instant::now());
+                                        if remaining > Duration::from_millis(2) {
+                                            match rx.recv_timeout(Duration::from_millis(1)) {
+                                                Ok(MidiThreadMsg::HardReset) => {
+                                                    silence_active_notes(
+                                                        &mut active_notes,
+                                                        &mut midi_conn,
+                                                    );
+                                                    anchor = None;
+                                                    queue.clear();
+                                                    aborted = true;
+                                                    break;
                                                 }
-                                                MidiThreadMsg::HardReset => break,
+                                                Ok(MidiThreadMsg::SetFastForward(true)) => {
+                                                    fast_forward = true;
+                                                    anchor = None;
+                                                    aborted = true;
+                                                    track_note(&midi_data, &mut active_notes);
+                                                    let _ = midi_conn.send(&midi_data);
+                                                    break;
+                                                }
+                                                Ok(MidiThreadMsg::SetFastForward(false)) => {
+                                                    fast_forward = false;
+                                                }
+                                                Ok(event @ MidiThreadMsg::Event(..)) => {
+                                                    queue.push_back(event);
+                                                }
+                                                Err(_) => {}
                                             }
+                                        } else {
+                                            sleeper.sleep_until(target_time);
                                         }
-                                        silence_active_notes(&mut active_notes, &mut midi_conn);
-                                        anchor = None;
-                                    } else {
-                                        track_note(&midi_data, &mut active_notes);
-                                        let _ = midi_conn.send(&midi_data);
                                     }
-                                }
-                                MidiThreadMsg::HardReset => {
-                                    silence_active_notes(&mut active_notes, &mut midi_conn);
-                                    anchor = None;
+
+                                    if !aborted {
+                                        if Instant::now().duration_since(target_time)
+                                            > sync_lag_threshold
+                                        {
+                                            track_note(&midi_data, &mut active_notes);
+                                            while let Ok(stale) = rx.try_recv() {
+                                                match stale {
+                                                    MidiThreadMsg::Event(d, _) => {
+                                                        track_note(&d, &mut active_notes);
+                                                    }
+                                                    MidiThreadMsg::HardReset => break,
+                                                    MidiThreadMsg::SetFastForward(ff) => {
+                                                        fast_forward = ff;
+                                                    }
+                                                }
+                                            }
+                                            silence_active_notes(&mut active_notes, &mut midi_conn);
+                                            anchor = None;
+                                            queue.clear();
+                                        } else {
+                                            track_note(&midi_data, &mut active_notes);
+                                            let _ = midi_conn.send(&midi_data);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -417,14 +481,13 @@ impl ApplicationHandler for App {
             return;
         }
 
-        if let Some(since) = self.f9_pressed_since {
-            if self.paused
-                && !self.is_fast_forwarding
-                && since.elapsed() > Duration::from_millis(500)
-            {
-                self.is_fast_forwarding = true;
-                let _ = self.cmd_tx.send(EmulationCommand::SetFastForward(true));
-            }
+        if let Some(since) = self.f9_pressed_since
+            && self.paused
+            && !self.is_fast_forwarding
+            && since.elapsed() > Duration::from_millis(500)
+        {
+            self.is_fast_forwarding = true;
+            let _ = self.cmd_tx.send(EmulationCommand::SetFastForward(true));
         }
 
         let mut latest_frame = None;
@@ -542,6 +605,9 @@ fn run_emulation(
                 }
                 EmulationCommand::SetFastForward(ff) => {
                     fast_forward = ff;
+                    if let Some(tx) = &midi_tx {
+                        let _ = tx.send(MidiThreadMsg::SetFastForward(ff));
+                    }
                 }
                 EmulationCommand::HardReset => {
                     save_replay(&recorder_opt);
