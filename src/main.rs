@@ -186,7 +186,7 @@ fn main() -> Result<()> {
 
     ensure!(
         rom_path.is_none() || args.midi.is_none(),
-        "a ROM disk cannot be plugged in simultaneously with the MIDI interface"
+        "a ROM disk cannot be plugged in simultaneously with the MIDI"
     );
 
     let mut rom_sha256 = String::from(SYSTEM_ROM_HASH);
