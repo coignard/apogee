@@ -354,7 +354,7 @@ mod tests {
         assert!(matches!(
             Machine::validate_rka(&dump_memory_overflow, false),
             Err(MachineError::MemoryOverflow)
-));
+        ));
     }
 
     #[test]
