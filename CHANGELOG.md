@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4
+
+### Changed
+
+- Test snapshots regenerated following the iz80 update; corrected ORA cycle counts shift instruction timing, invalidating all previously recorded snapshots
+
 ## 0.2.3
 
 ### Changed
