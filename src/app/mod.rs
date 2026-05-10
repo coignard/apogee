@@ -37,6 +37,7 @@ use crate::app::keyboard::map_keycode;
 
 use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_HZ, Machine};
+use apogee_rs::core::peripherals::UserPeripheral;
 use apogee_rs::core::peripherals::keyboard::Key;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
@@ -57,6 +58,40 @@ const AUDIO_LATENCY_FRAMES_NUMER: u64 = 3;
 const AUDIO_LATENCY_FRAMES_DENOM: u64 = 2;
 const WINDOW_SCALE: f64 = 2.0;
 
+#[derive(Clone)]
+pub struct MachineConfig {
+    pub system_rom: Arc<[u8]>,
+    pub sample_rate: u32,
+    pub rka: Option<(Arc<[u8]>, bool, bool)>,
+    pub romdisk: Option<Arc<[u8]>>,
+    pub midi_enabled: bool,
+    pub rom_name: String,
+}
+
+impl MachineConfig {
+    pub fn new_machine(&self) -> Machine {
+        let mut machine = Machine::new(self.system_rom.to_vec(), self.sample_rate);
+
+        if let Some((rka, autorun, force)) = &self.rka {
+            machine
+                .load_rka(rka, *autorun, *force)
+                .expect("RKA validation was performed earlier");
+        }
+
+        if let Some(rom) = &self.romdisk {
+            let mut romdisk = apogee_rs::core::peripherals::romdisk::RomDisk::new();
+            romdisk.load(rom);
+            machine.plug_user_peripheral(UserPeripheral::RomDisk(romdisk));
+        } else if self.midi_enabled {
+            machine.plug_user_peripheral(UserPeripheral::Midi(
+                apogee_rs::core::peripherals::midi::MidiInterface::new(),
+            ));
+        }
+
+        machine
+    }
+}
+
 struct EmulationFrame {
     width: u32,
     height: u32,
@@ -67,8 +102,10 @@ enum EmulationCommand {
     KeyEvent { key: Key, pressed: bool },
     TogglePause,
     StepFrame,
-    DumpSnapshot { rom_name: String },
-    SaveReplay { rom_name: String },
+    SetFastForward(bool),
+    HardReset,
+    DumpSnapshot,
+    SaveReplay,
     Quit,
 }
 
@@ -76,11 +113,15 @@ enum EmulationError {
     AudioDisconnected,
 }
 
+enum MidiThreadMsg {
+    Event(Vec<u8>, u64),
+    HardReset,
+}
+
 pub struct AppConfig {
     pub debug_mode: bool,
     pub recorder: Option<ReplayRecorder>,
     pub player: Option<ReplayPlayer>,
-    pub rom_name: String,
     pub midi_out: Option<midir::MidiOutputConnection>,
 }
 
@@ -97,8 +138,10 @@ pub struct App {
 
     debug_mode: bool,
     paused: bool,
+    f9_pressed_since: Option<Instant>,
+    is_fast_forwarding: bool,
+
     has_player: bool,
-    rom_name: String,
 
     cmd_tx: Sender<EmulationCommand>,
     frame_rx: Receiver<EmulationFrame>,
@@ -110,7 +153,7 @@ pub struct App {
 
 impl App {
     pub fn new(
-        machine: Machine,
+        machine_config: MachineConfig,
         video: VideoRenderer,
         audio: AudioSystem,
         config: AppConfig,
@@ -126,7 +169,7 @@ impl App {
 
         let (midi_tx, midi_thread) = match config.midi_out {
             Some(mut midi_conn) => {
-                let (tx, rx) = crossbeam_channel::unbounded::<(Vec<u8>, u64)>();
+                let (tx, rx) = crossbeam_channel::unbounded::<MidiThreadMsg>();
                 let handle = std::thread::Builder::new()
                     .name("midi".into())
                     .spawn(move || {
@@ -134,34 +177,49 @@ impl App {
                         let mut anchor: Option<(Instant, u64)> = None;
                         let mut active_notes = [0u128; MIDI_CHANNELS_COUNT as usize];
 
-                        while let Ok((msg, target_cycle)) = rx.recv() {
-                            let now = Instant::now();
-                            let (anchor_time, anchor_cycle) = *anchor.get_or_insert_with(|| {
-                                let latency_secs = frame_duration_secs
-                                    * (AUDIO_LATENCY_FRAMES_NUMER as f64
-                                        / AUDIO_LATENCY_FRAMES_DENOM as f64);
-                                let delay = Duration::from_secs_f64(latency_secs);
-                                (now + delay, target_cycle)
-                            });
+                        while let Ok(msg) = rx.recv() {
+                            match msg {
+                                MidiThreadMsg::Event(midi_data, target_cycle) => {
+                                    let now = Instant::now();
+                                    let (anchor_time, anchor_cycle) =
+                                        *anchor.get_or_insert_with(|| {
+                                            let latency_secs = frame_duration_secs
+                                                * (AUDIO_LATENCY_FRAMES_NUMER as f64
+                                                    / AUDIO_LATENCY_FRAMES_DENOM as f64);
+                                            let delay = Duration::from_secs_f64(latency_secs);
+                                            (now + delay, target_cycle)
+                                        });
 
-                            let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
-                            let target_time = anchor_time
-                                + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
+                                    let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
+                                    let target_time = anchor_time
+                                        + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
 
-                            if target_time > now {
-                                sleeper.sleep_until(target_time);
-                                track_note(&msg, &mut active_notes);
-                                let _ = midi_conn.send(&msg);
-                            } else if now.duration_since(target_time) > sync_lag_threshold {
-                                track_note(&msg, &mut active_notes);
-                                while let Ok((stale, _)) = rx.try_recv() {
-                                    track_note(&stale, &mut active_notes);
+                                    if target_time > now {
+                                        sleeper.sleep_until(target_time);
+                                        track_note(&midi_data, &mut active_notes);
+                                        let _ = midi_conn.send(&midi_data);
+                                    } else if now.duration_since(target_time) > sync_lag_threshold {
+                                        track_note(&midi_data, &mut active_notes);
+
+                                        while let Ok(stale_msg) = rx.try_recv() {
+                                            match stale_msg {
+                                                MidiThreadMsg::Event(stale_data, _) => {
+                                                    track_note(&stale_data, &mut active_notes);
+                                                }
+                                                MidiThreadMsg::HardReset => break,
+                                            }
+                                        }
+                                        silence_active_notes(&mut active_notes, &mut midi_conn);
+                                        anchor = None;
+                                    } else {
+                                        track_note(&midi_data, &mut active_notes);
+                                        let _ = midi_conn.send(&midi_data);
+                                    }
                                 }
-                                silence_active_notes(&mut active_notes, &mut midi_conn);
-                                anchor = None;
-                            } else {
-                                track_note(&msg, &mut active_notes);
-                                let _ = midi_conn.send(&msg);
+                                MidiThreadMsg::HardReset => {
+                                    silence_active_notes(&mut active_notes, &mut midi_conn);
+                                    anchor = None;
+                                }
                             }
                         }
 
@@ -181,19 +239,21 @@ impl App {
         let audio_tx = audio.tx.clone();
         let sample_rate = audio.sample_rate;
         let has_player = config.player.is_some();
+        let recorder_opt = config.recorder;
+        let player_opt = config.player;
 
         let emu_thread = std::thread::Builder::new()
             .name("emulation".into())
             .spawn(move || {
                 run_emulation(
-                    machine,
+                    machine_config,
                     video,
                     audio_tx,
                     sample_rate,
                     midi_tx,
                     midi_thread,
-                    config.recorder,
-                    config.player,
+                    recorder_opt,
+                    player_opt,
                     cmd_rx,
                     frame_tx,
                     emu_err_tx,
@@ -212,8 +272,9 @@ impl App {
             current_height: initial_height,
             debug_mode: config.debug_mode,
             paused: false,
+            f9_pressed_since: None,
+            is_fast_forwarding: false,
             has_player,
-            rom_name: config.rom_name,
             cmd_tx,
             frame_rx,
             emu_err_rx,
@@ -280,30 +341,41 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                let pressed = event.state == ElementState::Pressed;
-
                 if let PhysicalKey::Code(key_code) = event.physical_key
                     && !event.repeat
                 {
-                    if self.debug_mode {
-                        match key_code {
-                            KeyCode::F8 if pressed => {
-                                self.paused = !self.paused;
-                                let _ = self.cmd_tx.send(EmulationCommand::TogglePause);
-                            }
-                            KeyCode::F9 if pressed && self.paused => {
-                                let _ = self.cmd_tx.send(EmulationCommand::StepFrame);
-                            }
-                            KeyCode::F10 if pressed => {
-                                let _ = self.cmd_tx.send(EmulationCommand::DumpSnapshot {
-                                    rom_name: self.rom_name.clone(),
-                                });
-                                let _ = self.cmd_tx.send(EmulationCommand::SaveReplay {
-                                    rom_name: self.rom_name.clone(),
-                                });
-                            }
-                            _ => {}
+                    let pressed = event.state == ElementState::Pressed;
+
+                    match (key_code, pressed, self.debug_mode) {
+                        (KeyCode::F7, true, _) => {
+                            self.has_player = false;
+                            let _ = self.cmd_tx.send(EmulationCommand::HardReset);
                         }
+                        (KeyCode::F8, true, true) => {
+                            self.paused = !self.paused;
+                            let _ = self.cmd_tx.send(EmulationCommand::TogglePause);
+                        }
+                        (KeyCode::F9, true, true) if self.f9_pressed_since.is_none() => {
+                            self.f9_pressed_since = Some(Instant::now());
+                            if self.paused {
+                                let _ = self.cmd_tx.send(EmulationCommand::StepFrame);
+                            } else {
+                                self.is_fast_forwarding = true;
+                                let _ = self.cmd_tx.send(EmulationCommand::SetFastForward(true));
+                            }
+                        }
+                        (KeyCode::F9, false, true) => {
+                            self.f9_pressed_since = None;
+                            if self.is_fast_forwarding {
+                                self.is_fast_forwarding = false;
+                                let _ = self.cmd_tx.send(EmulationCommand::SetFastForward(false));
+                            }
+                        }
+                        (KeyCode::F10, true, true) => {
+                            let _ = self.cmd_tx.send(EmulationCommand::DumpSnapshot);
+                            let _ = self.cmd_tx.send(EmulationCommand::SaveReplay);
+                        }
+                        _ => {}
                     }
 
                     if let Some(key) = map_keycode(key_code)
@@ -343,6 +415,16 @@ impl ApplicationHandler for App {
             });
             event_loop.exit();
             return;
+        }
+
+        if let Some(since) = self.f9_pressed_since {
+            if self.paused
+                && !self.is_fast_forwarding
+                && since.elapsed() > Duration::from_millis(500)
+            {
+                self.is_fast_forwarding = true;
+                let _ = self.cmd_tx.send(EmulationCommand::SetFastForward(true));
+            }
         }
 
         let mut latest_frame = None;
@@ -386,9 +468,6 @@ impl ApplicationHandler for App {
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        let _ = self.cmd_tx.send(EmulationCommand::SaveReplay {
-            rom_name: self.rom_name.clone(),
-        });
         let _ = self.cmd_tx.send(EmulationCommand::Quit);
 
         if let Some(handle) = self.emu_thread.take() {
@@ -399,131 +478,181 @@ impl ApplicationHandler for App {
 
 #[allow(clippy::too_many_arguments)]
 fn run_emulation(
-    mut machine: Machine,
+    machine_config: MachineConfig,
     mut video: VideoRenderer,
     audio_tx: Sender<f32>,
     sample_rate: u32,
-    midi_tx: Option<Sender<(Vec<u8>, u64)>>,
+    midi_tx: Option<Sender<MidiThreadMsg>>,
     midi_thread: Option<JoinHandle<()>>,
-    mut recorder: Option<ReplayRecorder>,
-    mut player: Option<ReplayPlayer>,
+    mut recorder_opt: Option<ReplayRecorder>,
+    mut player_opt: Option<ReplayPlayer>,
     cmd_rx: Receiver<EmulationCommand>,
     frame_tx: Sender<EmulationFrame>,
     emu_err_tx: Sender<EmulationError>,
 ) {
-    let mut emulate = |midi_tx: &Option<Sender<(Vec<u8>, u64)>>| {
-        let mut midi_stream = midly::stream::MidiStream::new();
-        let mut midi_encode_buf = Vec::with_capacity(3);
+    let mut midi_stream = midly::stream::MidiStream::new();
 
-        let cpu_freq = MASTER_CLOCK_HZ / CPU_DIVIDER;
-        let samples_per_frame =
-            (sample_rate as u64 * DEFAULT_FRAME_CYCLES as u64) / cpu_freq as u64;
-        let latency_samples = ((samples_per_frame * AUDIO_LATENCY_FRAMES_NUMER)
-            / AUDIO_LATENCY_FRAMES_DENOM) as usize;
+    let cpu_freq = MASTER_CLOCK_HZ / CPU_DIVIDER;
+    let samples_per_frame = (sample_rate as u64 * DEFAULT_FRAME_CYCLES as u64) / cpu_freq as u64;
+    let latency_samples =
+        ((samples_per_frame * AUDIO_LATENCY_FRAMES_NUMER) / AUDIO_LATENCY_FRAMES_DENOM) as usize;
 
-        let mut paused = false;
-        let mut step_frame = false;
+    let mut paused = false;
+    let mut step_frame = false;
+    let mut fast_forward = false;
+    let mut ff_skip_counter = 0;
 
-        loop {
-            loop {
-                let cmd = if paused && !step_frame {
-                    match cmd_rx.recv() {
-                        Ok(cmd) => cmd,
-                        Err(_) => return,
-                    }
-                } else {
-                    match cmd_rx.try_recv() {
-                        Ok(cmd) => cmd,
-                        Err(crossbeam_channel::TryRecvError::Empty) => break,
-                        Err(crossbeam_channel::TryRecvError::Disconnected) => return,
-                    }
-                };
+    let mut machine = machine_config.new_machine();
 
-                match cmd {
-                    EmulationCommand::KeyEvent { key, pressed } => {
-                        machine.update_key(key, pressed);
-                        if let Some(rec) = &mut recorder {
-                            rec.push_key(machine.cycle_count(), key, pressed);
-                        }
-                    }
-                    EmulationCommand::TogglePause => {
-                        paused = !paused;
-                    }
-                    EmulationCommand::StepFrame => {
-                        step_frame = true;
-                    }
-                    EmulationCommand::DumpSnapshot { rom_name } => {
-                        let frame = machine.cycle_count();
-                        let snap_name = format!("{}_frame_{}", rom_name, frame);
-                        dump_snapshot(&machine, &video, &snap_name);
-
-                        if let Some(rec) = &mut recorder {
-                            rec.push_snapshot(frame, snap_name);
-                        }
-                    }
-                    EmulationCommand::SaveReplay { rom_name } => {
-                        if let Some(rec) = &recorder {
-                            let _ = rec.save(&format!("{}.json", rom_name));
-                        }
-                    }
-                    EmulationCommand::Quit => return,
-                }
-            }
-
-            if step_frame {
-                let mut vblank_occurred = false;
-                while !vblank_occurred {
-                    match emu_cycle(
-                        &mut machine,
-                        &audio_tx,
-                        midi_tx,
-                        &mut midi_stream,
-                        &mut midi_encode_buf,
-                        &mut player,
-                    ) {
-                        Ok(v) => vblank_occurred = v,
-                        Err(()) => {
-                            let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
-                            return;
-                        }
-                    }
-                }
-                video.render_frame(machine.vg75());
-                send_frame(&video, &frame_tx);
-                step_frame = false;
-                continue;
-            }
-
-            if audio_tx.len() >= latency_samples {
-                std::thread::yield_now();
-                continue;
-            }
-
-            while audio_tx.len() < latency_samples {
-                match emu_cycle(
-                    &mut machine,
-                    &audio_tx,
-                    midi_tx,
-                    &mut midi_stream,
-                    &mut midi_encode_buf,
-                    &mut player,
-                ) {
-                    Ok(vblank_occurred) => {
-                        if vblank_occurred {
-                            video.render_frame(machine.vg75());
-                            send_frame(&video, &frame_tx);
-                        }
-                    }
-                    Err(()) => {
-                        let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
-                        return;
-                    }
-                }
-            }
+    let save_replay = |rec: &Option<ReplayRecorder>| {
+        if let Some(r) = rec
+            && !r.is_empty()
+        {
+            let _ = r.save(&format!("{}.json", machine_config.rom_name));
         }
     };
 
-    emulate(&midi_tx);
+    'run: loop {
+        loop {
+            let cmd = if paused && !step_frame && !fast_forward {
+                match cmd_rx.recv() {
+                    Ok(cmd) => cmd,
+                    Err(_) => break 'run,
+                }
+            } else {
+                match cmd_rx.try_recv() {
+                    Ok(cmd) => cmd,
+                    Err(crossbeam_channel::TryRecvError::Empty) => break,
+                    Err(crossbeam_channel::TryRecvError::Disconnected) => break 'run,
+                }
+            };
+
+            match cmd {
+                EmulationCommand::KeyEvent { key, pressed } => {
+                    machine.update_key(key, pressed);
+                    if let Some(rec) = &mut recorder_opt {
+                        rec.push_key(machine.cycle_count(), key, pressed);
+                    }
+                }
+                EmulationCommand::TogglePause => {
+                    paused = !paused;
+                }
+                EmulationCommand::StepFrame => {
+                    step_frame = true;
+                }
+                EmulationCommand::SetFastForward(ff) => {
+                    fast_forward = ff;
+                }
+                EmulationCommand::HardReset => {
+                    save_replay(&recorder_opt);
+                    recorder_opt = None;
+                    player_opt = None;
+                    machine = machine_config.new_machine();
+                    midi_stream = midly::stream::MidiStream::new();
+                    if let Some(tx) = &midi_tx {
+                        let _ = tx.send(MidiThreadMsg::HardReset);
+                    }
+                }
+                EmulationCommand::DumpSnapshot => {
+                    let frame = machine.cycle_count();
+                    let snap_name = format!("{}_frame_{}", machine_config.rom_name, frame);
+                    dump_snapshot(&machine, &video, &snap_name);
+
+                    if let Some(rec) = &mut recorder_opt {
+                        rec.push_snapshot(frame, snap_name);
+                    }
+                }
+                EmulationCommand::SaveReplay => {
+                    save_replay(&recorder_opt);
+                }
+                EmulationCommand::Quit => {
+                    save_replay(&recorder_opt);
+                    break 'run;
+                }
+            }
+        }
+
+        if step_frame {
+            let mut vblank_occurred = false;
+            while !vblank_occurred {
+                match emu_cycle(
+                    &mut machine,
+                    &audio_tx,
+                    &midi_tx,
+                    &mut midi_stream,
+                    &mut player_opt,
+                    false,
+                ) {
+                    Ok(v) => vblank_occurred = v,
+                    Err(()) => {
+                        let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
+                        break 'run;
+                    }
+                }
+            }
+            video.render_frame(machine.vg75());
+            send_frame(&video, &frame_tx);
+            step_frame = false;
+            continue;
+        }
+
+        if fast_forward {
+            match emu_cycle(
+                &mut machine,
+                &audio_tx,
+                &midi_tx,
+                &mut midi_stream,
+                &mut player_opt,
+                true,
+            ) {
+                Ok(vblank) => {
+                    if vblank {
+                        ff_skip_counter += 1;
+                        if ff_skip_counter >= 5 {
+                            ff_skip_counter = 0;
+                            if !frame_tx.is_full() {
+                                video.render_frame(machine.vg75());
+                                send_frame(&video, &frame_tx);
+                            }
+                        }
+                    }
+                }
+                Err(()) => {
+                    let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
+                    break 'run;
+                }
+            }
+            continue;
+        }
+
+        if audio_tx.len() >= latency_samples {
+            std::thread::yield_now();
+            continue;
+        }
+
+        while audio_tx.len() < latency_samples {
+            match emu_cycle(
+                &mut machine,
+                &audio_tx,
+                &midi_tx,
+                &mut midi_stream,
+                &mut player_opt,
+                false,
+            ) {
+                Ok(vblank_occurred) => {
+                    if vblank_occurred {
+                        video.render_frame(machine.vg75());
+                        send_frame(&video, &frame_tx);
+                    }
+                }
+                Err(()) => {
+                    let _ = emu_err_tx.send(EmulationError::AudioDisconnected);
+                    break 'run;
+                }
+            }
+        }
+    }
+
     drop(midi_tx);
     if let Some(handle) = midi_thread {
         let _ = handle.join();
@@ -534,10 +663,10 @@ fn run_emulation(
 fn emu_cycle(
     machine: &mut Machine,
     audio_tx: &Sender<f32>,
-    midi_tx: &Option<Sender<(Vec<u8>, u64)>>,
+    midi_tx: &Option<Sender<MidiThreadMsg>>,
     midi_stream: &mut midly::stream::MidiStream,
-    midi_encode_buf: &mut Vec<u8>,
     player: &mut Option<ReplayPlayer>,
+    fast_forward: bool,
 ) -> Result<bool, ()> {
     if let Some(player) = player {
         let _ = player.apply_pending_events(machine);
@@ -545,8 +674,14 @@ fn emu_cycle(
 
     let mut audio_alive = true;
     let vblank_occurred = machine.tick(|sample| {
-        if let Err(crossbeam_channel::TrySendError::Disconnected(_)) = audio_tx.try_send(sample) {
-            audio_alive = false;
+        if !fast_forward {
+            match audio_tx.try_send(sample) {
+                Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
+                    audio_alive = false;
+                }
+                Err(crossbeam_channel::TrySendError::Full(_)) => {}
+                Ok(_) => {}
+            }
         }
     });
 
@@ -554,9 +689,9 @@ fn emu_cycle(
         machine.drain_midi_out(|events| {
             for &(byte, cycle) in events {
                 midi_stream.feed(&[byte], |live_event| {
-                    midi_encode_buf.clear();
-                    if live_event.write_std(&mut *midi_encode_buf).is_ok() {
-                        let _ = tx.send((midi_encode_buf.clone(), cycle));
+                    let mut buf = Vec::with_capacity(3);
+                    if live_event.write_std(&mut buf).is_ok() {
+                        let _ = tx.send(MidiThreadMsg::Event(buf, cycle));
                     }
                 });
             }
