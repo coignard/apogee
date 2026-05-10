@@ -84,6 +84,10 @@ impl ReplayRecorder {
         });
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.replay.events.is_empty()
+    }
+
     pub fn save(&self, filename: &str) -> anyhow::Result<()> {
         let file = File::create(filename)?;
         let writer = BufWriter::new(file);
