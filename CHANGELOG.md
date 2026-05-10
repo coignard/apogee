@@ -2,9 +2,22 @@
 
 ## 0.2.4
 
+### Added
+
+- `MachineConfig` struct encapsulating machine construction parameters (`system_rom`, `sample_rate`, `rka`, `romdisk`, `midi_enabled`, `rom_name`) with `new_machine()` factory method; `App::new()` now accepts `MachineConfig` instead of a pre-built `Machine`, deferring construction to the emulation thread
+- Hard reset via F7: machine reinstantiated via `MachineConfig::new_machine()`, recorder and player cleared, MIDI ring buffer flushed via `MidiThreadMsg::HardReset` with active notes silenced
+- Fast-forward via F9 hold: holding F9 for 500 ms outside pause activates fast-forward mode: audio output suppressed, every fifth vblank rendered, emulation runs uncapped; releasing F9 deactivates fast-forward and resets the MIDI sync anchor
+- `MidiThreadMsg` enum replacing the raw `(Vec<u8>, u64)` tuple channel; variants `Event`, `HardReset`, and `SetFastForward` allow the MIDI thread to respond to reset and speed-change signals while blocked on timing
+- `SetFastForward` handling in the MIDI thread: in fast-forward mode events are dispatched immediately without cycle-accurate delay; anchor is cleared on transition back to normal speed
+- `ReplayRecorder::is_empty()` predicate; replay is no longer auto-saved on exit and saved explicitly via F10 or on `Quit` only when the recorder is non-empty
+
 ### Changed
 
-- Test snapshots regenerated following the iz80 update; corrected ORA cycle counts shift instruction timing, invalidating all previously recorded snapshots
+- MIDI thread sleep replaced with `recv_deadline`-based loop: `HardReset` and `SetFastForward` messages are acted upon immediately even while the thread is waiting for an event's target timestamp, eliminating stuck notes and preventing stale-anchor accumulation across resets
+- `DumpSnapshot` and `SaveReplay` commands no longer carry `rom_name`; the name is captured from `MachineConfig` inside the emulation closure
+- RKA header interpretation simplified: the second 16-bit word is now always treated as an inclusive end address; the dual-interpretation heuristic comparing dump-size vs end-address readings is removed; files where `end_addr < start_addr` are rejected with `InvalidRkaLength`
+- `emu_cycle` gains a `fast_forward: bool` parameter; audio samples are skipped entirely and the shared `midi_encode_buf` is replaced with a per-call allocation, removing the mutable buffer argument from the signature
+- Test snapshots regenerated following the iz80 update; corrected ORA cycle counts and shift instruction timing, invalidating all previously recorded snapshots
 
 ## 0.2.3
 
@@ -112,7 +125,7 @@
 ### Changed
 
 - Synchronization model replaced: wall-clock / delta-time loop removed in favour of audio-buffer-driven execution; `machine.run(elapsed_secs, ...)` to `machine.tick(push_sample)` returning a `bool` vblank flag
-- Frame rendering decoupled from the tick callback; `render_frame` closure removed from the machine API — rendering is triggered in the event loop only when `tick()` returns `true`
+- Frame rendering decoupled from the tick callback; `render_frame` closure removed from the machine API as rendering is triggered in the event loop only when `tick()` returns `true`
 - Throttle guard replaced with a hot `ControlFlow::Poll` + `yield_now()` spin against a hardware-derived 1.5-frame audio latency watermark, eliminating OS-sleep wake-up jitter
 - `AudioMixer` phase accumulator reworked to operate on `master_clock_hz` and `cpu_divider` directly instead of a pre-divided `cpu_freq`; removes rounding error and makes drift mathematically impossible
 - Audio channel capacity changed from hardcoded `8192` to `sample_rate / 2` (0.5 seconds), providing a reliable shock absorber against OS thread suspension
