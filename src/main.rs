@@ -25,12 +25,10 @@ use sha2::{Digest, Sha256};
 use winit::event_loop::EventLoop;
 
 use crate::app::audio::AudioSystem;
-use crate::app::{App, AppConfig};
+use crate::app::{App, AppConfig, MachineConfig};
 
 use apogee_rs::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::Machine;
-use apogee_rs::core::peripherals::UserPeripheral;
-use apogee_rs::core::peripherals::midi::MidiInterface;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
 const SYSTEM_ROM: &[u8] = include_bytes!("../dist/roms/apogee.rom");
@@ -192,7 +190,7 @@ fn main() -> Result<()> {
     let mut rom_sha256 = String::from(SYSTEM_ROM_HASH);
     let mut rom_name = String::from("monitor");
 
-    if let Some(path) = &rka_path {
+    let rka_payload = if let Some(path) = &rka_path {
         let rka_data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
         Machine::validate_rka(&rka_data, args.force)
             .with_context(|| format!("invalid RKA file '{}'", path))?;
@@ -203,7 +201,18 @@ fn main() -> Result<()> {
             .unwrap_or(std::ffi::OsStr::new("unknown"))
             .to_string_lossy()
             .into_owned();
-    }
+        Some((std::sync::Arc::from(rka_data), args.autorun, args.force))
+    } else {
+        None
+    };
+
+    let rom_payload = if let Some(rom_path_resolved) = &rom_path {
+        let data = fs::read(rom_path_resolved)
+            .with_context(|| format!("could not read '{}'", rom_path_resolved))?;
+        Some(std::sync::Arc::from(data))
+    } else {
+        None
+    };
 
     let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
 
@@ -216,58 +225,52 @@ fn main() -> Result<()> {
     };
 
     let audio = AudioSystem::new().context("Failed to initialize audio system")?;
-    let mut machine = Machine::new(SYSTEM_ROM.to_vec(), audio.sample_rate);
     let video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, args.crt);
-
-    if let Some(path) = &rka_path {
-        let rka_data = fs::read(path).unwrap();
-        machine
-            .load_rka(&rka_data, args.autorun, args.force)
-            .context("Unexpected error occured while loading RKA data into memory")?;
-    }
 
     let mut midi_conn = None;
 
-    if let Some(rom_path_resolved) = &rom_path {
-        let data = fs::read(rom_path_resolved)
-            .with_context(|| format!("could not read '{}'", rom_path_resolved))?;
-        let mut romdisk = apogee_rs::core::peripherals::romdisk::RomDisk::new();
-        romdisk.load(&data);
-        machine.plug_user_peripheral(UserPeripheral::RomDisk(romdisk));
-    } else if let Some(midi_arg) = &args.midi {
-        if let Ok(midi_out) = midir::MidiOutput::new("Apogee BK-01") {
-            let ports = midi_out.ports();
+    if rom_payload.is_none()
+        && let Some(midi_arg) = &args.midi
+        && let Ok(midi_out) = midir::MidiOutput::new("Apogee BK-01")
+    {
+        let ports = midi_out.ports();
 
-            let target_port = if midi_arg.is_empty() {
-                ports.first()
-            } else {
-                ports
-                    .iter()
-                    .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
-                    .or_else(|| {
-                        midi_arg
-                            .parse::<usize>()
-                            .ok()
-                            .and_then(|idx| ports.get(idx))
-                    })
-            };
+        let target_port = if midi_arg.is_empty() {
+            ports.first()
+        } else {
+            ports
+                .iter()
+                .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
+                .or_else(|| {
+                    midi_arg
+                        .parse::<usize>()
+                        .ok()
+                        .and_then(|idx| ports.get(idx))
+                })
+        };
 
-            if let Some(port) = target_port {
-                let conn_name = midi_out
-                    .port_name(port)
-                    .unwrap_or_else(|_| "Apogee BK-01 MIDI Out".to_string());
-                midi_conn = midi_out.connect(port, &conn_name).ok();
-            } else {
-                #[cfg(unix)]
-                {
-                    use midir::os::unix::VirtualOutput;
-                    midi_conn = midi_out.create_virtual(midi_arg).ok();
-                }
+        if let Some(port) = target_port {
+            let conn_name = midi_out
+                .port_name(port)
+                .unwrap_or_else(|_| "Apogee BK-01 MIDI Out".to_string());
+            midi_conn = midi_out.connect(port, &conn_name).ok();
+        } else {
+            #[cfg(unix)]
+            {
+                use midir::os::unix::VirtualOutput;
+                midi_conn = midi_out.create_virtual(midi_arg).ok();
             }
         }
-
-        machine.plug_user_peripheral(UserPeripheral::Midi(MidiInterface::new()));
     }
+
+    let machine_config = MachineConfig {
+        system_rom: std::sync::Arc::from(SYSTEM_ROM),
+        sample_rate: audio.sample_rate,
+        rka: rka_payload,
+        romdisk: rom_payload,
+        midi_enabled: midi_conn.is_some() || args.midi.is_some(),
+        rom_name: rom_name.clone(),
+    };
 
     let recorder = args.record.then(|| {
         ReplayRecorder::new(ReplayMetadata {
@@ -282,26 +285,20 @@ fn main() -> Result<()> {
 
     let player = if let Some(path) = &args.play {
         let player = ReplayPlayer::from_file(path)?;
-        ensure!(
-            player.replay.metadata.rom_sha256 == rom_sha256,
-            "replay SHA256 '{}' does not match loaded ROM '{}'",
-            player.replay.metadata.rom_sha256,
-            rom_sha256
-        );
+        player.verify_rom_hash(&rom_sha256)?;
         Some(player)
     } else {
         None
     };
 
     let mut app = App::new(
-        machine,
+        machine_config,
         video,
         audio,
         AppConfig {
             debug_mode: args.debug,
             recorder,
             player,
-            rom_name,
             midi_out: midi_conn,
         },
     );
