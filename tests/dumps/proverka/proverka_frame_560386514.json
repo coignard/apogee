@@ -6,43 +6,46 @@
     "vi53": {
       "channels": [
         {
-          "mode": 7,
+          "mode": "SquareWave",
           "rw_mode": "LsbThenMsb",
-          "reload": 4112,
-          "reload_latch": 4112,
+          "is_bcd": false,
+          "state": "Counting",
+          "rw_phase": "Lsb",
+          "latch": "None",
+          "reload_value": 4112,
+          "working_counter": 1914,
+          "out_pin": false,
+          "gate_pin": true,
           "reload_pending": false,
-          "counter": 957,
-          "latch": 0,
-          "phase": "Lsb",
-          "out": false,
-          "latched": false,
-          "counting": true
+          "strobe_fired": false
         },
         {
-          "mode": 7,
+          "mode": "SquareWave",
           "rw_mode": "LsbThenMsb",
-          "reload": 0,
-          "reload_latch": 0,
+          "is_bcd": false,
+          "state": "WaitLoad",
+          "rw_phase": "Lsb",
+          "latch": "None",
+          "reload_value": 0,
+          "working_counter": 0,
+          "out_pin": true,
+          "gate_pin": true,
           "reload_pending": false,
-          "counter": 0,
-          "latch": 0,
-          "phase": "Lsb",
-          "out": true,
-          "latched": false,
-          "counting": false
+          "strobe_fired": false
         },
         {
-          "mode": 7,
+          "mode": "SquareWave",
           "rw_mode": "LsbThenMsb",
-          "reload": 0,
-          "reload_latch": 0,
+          "is_bcd": false,
+          "state": "WaitLoad",
+          "rw_phase": "Lsb",
+          "latch": "None",
+          "reload_value": 0,
+          "working_counter": 0,
+          "out_pin": true,
+          "gate_pin": true,
           "reload_pending": false,
-          "counter": 0,
-          "latch": 0,
-          "phase": "Lsb",
-          "out": true,
-          "latched": false,
-          "counting": false
+          "strobe_fired": false
         }
       ]
     },
