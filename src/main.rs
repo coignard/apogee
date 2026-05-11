@@ -187,101 +187,29 @@ fn main() -> Result<()> {
         "a ROM disk cannot be plugged in simultaneously with the MIDI"
     );
 
-    let mut rom_sha256 = String::from(SYSTEM_ROM_HASH);
-    let mut rom_name = String::from("monitor");
-
-    let rka_payload = if let Some(path) = &rka_path {
-        let rka_data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
-        Machine::validate_rka(&rka_data, args.force)
+    let (rka_data, rom_sha256, rom_name) = if let Some(path) = &rka_path {
+        let data = fs::read(path).with_context(|| format!("could not read '{}'", path))?;
+        Machine::validate_rka(&data, args.force)
             .with_context(|| format!("invalid RKA file '{}'", path))?;
 
-        rom_sha256 = hex::encode(Sha256::digest(&rka_data));
-        rom_name = std::path::Path::new(path)
+        let sha256 = hex::encode(Sha256::digest(&data));
+        let name = std::path::Path::new(path)
             .file_stem()
             .unwrap_or(std::ffi::OsStr::new("unknown"))
             .to_string_lossy()
             .into_owned();
-        Some((std::sync::Arc::from(rka_data), args.autorun, args.force))
+
+        (Some(data), sha256, name)
     } else {
-        None
+        (None, String::from(SYSTEM_ROM_HASH), String::from("monitor"))
     };
 
-    let rom_payload = if let Some(rom_path_resolved) = &rom_path {
-        let data = fs::read(rom_path_resolved)
-            .with_context(|| format!("could not read '{}'", rom_path_resolved))?;
+    let rom_payload = if let Some(rom_path) = &rom_path {
+        let data = fs::read(rom_path).with_context(|| format!("could not read '{}'", rom_path))?;
         Some(std::sync::Arc::from(data))
     } else {
         None
     };
-
-    let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
-
-    let color_mode = if args.bw {
-        ColorMode::Bw
-    } else if args.grayscale {
-        ColorMode::Grayscale
-    } else {
-        ColorMode::Color
-    };
-
-    let audio = AudioSystem::new().context("Failed to initialize audio system")?;
-    let video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, args.crt);
-
-    let mut midi_conn = None;
-
-    if rom_payload.is_none()
-        && let Some(midi_arg) = &args.midi
-        && let Ok(midi_out) = midir::MidiOutput::new("Apogee BK-01")
-    {
-        let ports = midi_out.ports();
-
-        let target_port = if midi_arg.is_empty() {
-            ports.first()
-        } else {
-            ports
-                .iter()
-                .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
-                .or_else(|| {
-                    midi_arg
-                        .parse::<usize>()
-                        .ok()
-                        .and_then(|idx| ports.get(idx))
-                })
-        };
-
-        if let Some(port) = target_port {
-            let conn_name = midi_out
-                .port_name(port)
-                .unwrap_or_else(|_| "Apogee BK-01 MIDI Out".to_string());
-            midi_conn = midi_out.connect(port, &conn_name).ok();
-        } else {
-            #[cfg(unix)]
-            {
-                use midir::os::unix::VirtualOutput;
-                midi_conn = midi_out.create_virtual(midi_arg).ok();
-            }
-        }
-    }
-
-    let machine_config = MachineConfig {
-        system_rom: std::sync::Arc::from(SYSTEM_ROM),
-        sample_rate: audio.sample_rate,
-        rka: rka_payload,
-        romdisk: rom_payload,
-        midi_enabled: midi_conn.is_some() || args.midi.is_some(),
-        rom_name: rom_name.clone(),
-    };
-
-    let recorder = args.record.then(|| {
-        ReplayRecorder::new(ReplayMetadata {
-            rom_name: rom_name.clone(),
-            rom_sha256: rom_sha256.clone(),
-            autorun: args.autorun,
-            sample_rate: audio.sample_rate,
-            color_mode,
-            is_crt: args.crt,
-        })
-    });
 
     let player = if let Some(path) = &args.play {
         let player = ReplayPlayer::from_file(path)?;
@@ -290,6 +218,104 @@ fn main() -> Result<()> {
     } else {
         None
     };
+
+    let autorun = player
+        .as_ref()
+        .map(|p| p.replay.metadata.autorun)
+        .unwrap_or(args.autorun);
+
+    let color_mode = player
+        .as_ref()
+        .map(|p| p.replay.metadata.color_mode)
+        .unwrap_or_else(|| {
+            if args.bw {
+                ColorMode::Bw
+            } else if args.grayscale {
+                ColorMode::Grayscale
+            } else {
+                ColorMode::Color
+            }
+        });
+
+    let is_crt = player
+        .as_ref()
+        .map(|p| p.replay.metadata.is_crt)
+        .unwrap_or(args.crt);
+
+    let rka_payload = rka_data.map(|data| (std::sync::Arc::from(data), autorun, args.force));
+
+    let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
+
+    let audio = AudioSystem::new().context("Failed to initialize audio system")?;
+    let video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, is_crt);
+
+    let sample_rate = player
+        .as_ref()
+        .map(|p| p.replay.metadata.sample_rate)
+        .unwrap_or(audio.sample_rate);
+
+    let midi_conn = if rom_payload.is_none()
+        && let Some(midi_arg) = &args.midi
+    {
+        midir::MidiOutput::new("Apogee BK-01")
+            .ok()
+            .and_then(|midi_out| {
+                let ports = midi_out.ports();
+                let target_port = if midi_arg.is_empty() {
+                    ports.first().cloned()
+                } else {
+                    ports
+                        .iter()
+                        .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
+                        .or_else(|| {
+                            midi_arg
+                                .parse::<usize>()
+                                .ok()
+                                .and_then(|idx| ports.get(idx))
+                        })
+                        .cloned()
+                };
+
+                if let Some(port) = target_port {
+                    let conn_name = midi_out
+                        .port_name(&port)
+                        .unwrap_or_else(|_| "Apogee BK-01 MIDI Out".to_string());
+                    midi_out.connect(&port, &conn_name).ok()
+                } else {
+                    #[cfg(unix)]
+                    {
+                        use midir::os::unix::VirtualOutput;
+                        midi_out.create_virtual(midi_arg).ok()
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        None
+                    }
+                }
+            })
+    } else {
+        None
+    };
+
+    let machine_config = MachineConfig {
+        system_rom: std::sync::Arc::from(SYSTEM_ROM),
+        sample_rate,
+        rka: rka_payload,
+        romdisk: rom_payload,
+        midi_enabled: midi_conn.is_some() || args.midi.is_some(),
+        rom_name: rom_name.clone(),
+    };
+
+    let recorder = args.record.then(|| {
+        ReplayRecorder::new(ReplayMetadata {
+            rom_name,
+            rom_sha256,
+            autorun,
+            sample_rate,
+            color_mode,
+            is_crt,
+        })
+    });
 
     let mut app = App::new(
         machine_config,
