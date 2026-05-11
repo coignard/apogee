@@ -12,6 +12,9 @@ Apogee BK-01 emulator with MIDI support via PPI
 [![License: GPL-3.0](https://img.shields.io/github/license/coignard/apogee?color=blue)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/coignard)
 
-![Apogee BK-01](assets/apogee.gif)
+<picture>
+  <source srcset="https://github.com/coignard/apogee/blob/main/assets/apogee.gif?raw=true">
+  <img src="assets/apogee.gif" alt="Apogee BK-01" height="600">
+</picture>
 
 </div>
