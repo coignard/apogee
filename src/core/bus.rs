@@ -93,13 +93,16 @@ impl Machine for Bus {
             memory_map::RAM_START..=memory_map::RAM_END => self.ram[addr as usize],
             memory_map::PIT_BASE..=memory_map::PIT_END => self.vi53.read(addr),
             memory_map::PPI_SYS_BASE..=memory_map::PPI_SYS_END => {
-                let kbd_mask = self.sys_vv55.port_a_out;
+                let kbd_mask = self.sys_vv55.peripheral_read_a();
                 let (kbd_res, port_c_in) = self.keyboard.read_matrix(kbd_mask);
-                self.sys_vv55.read(addr, 0xFF, kbd_res, port_c_in)
+                self.sys_vv55.peripheral_write_b(kbd_res);
+                self.sys_vv55.peripheral_write_c(port_c_in);
+                self.sys_vv55.cpu_read(addr)
             }
             memory_map::PPI_USR_BASE..=memory_map::PPI_USR_END => {
                 let port_a_in = self.user_slot.read_port_a();
-                self.user_vv55.read(addr, port_a_in, 0xFF, 0xFF)
+                self.user_vv55.peripheral_write_a(port_a_in);
+                self.user_vv55.cpu_read(addr)
             }
             memory_map::CRTC_BASE..=memory_map::CRTC_END => self.vg75.read(addr),
             memory_map::DMA_ROM_BASE..=memory_map::DMA_ROM_END => {
@@ -117,12 +120,14 @@ impl Machine for Bus {
         match addr {
             memory_map::RAM_START..=memory_map::RAM_END => self.ram[addr as usize] = val,
             memory_map::PIT_BASE..=memory_map::PIT_END => self.vi53.write(addr, val),
-            memory_map::PPI_SYS_BASE..=memory_map::PPI_SYS_END => self.sys_vv55.write(addr, val),
+            memory_map::PPI_SYS_BASE..=memory_map::PPI_SYS_END => {
+                self.sys_vv55.cpu_write(addr, val);
+            }
             memory_map::PPI_USR_BASE..=memory_map::PPI_USR_END => {
-                self.user_vv55.write(addr, val);
-                let port_a = self.user_vv55.port_a_out;
-                let port_b = self.user_vv55.port_b_out;
-                let port_c = self.user_vv55.port_c_out;
+                self.user_vv55.cpu_write(addr, val);
+                let port_a = self.user_vv55.peripheral_read_a();
+                let port_b = self.user_vv55.peripheral_read_b();
+                let port_c = self.user_vv55.peripheral_read_c();
                 self.user_slot
                     .update(port_a, port_b, port_c, self.current_cycle);
             }
