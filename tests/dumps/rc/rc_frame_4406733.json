@@ -197,16 +197,68 @@
       "frame_count": 124
     },
     "sys_vv55": {
-      "control": 138,
-      "port_a_out": 0,
-      "port_b_out": 0,
-      "port_c_out": 0
+      "config": {
+        "group_a": {
+          "mode": "Mode0",
+          "port_dir": "Output",
+          "port_c_dir": "Input"
+        },
+        "group_b": {
+          "mode": "Mode0",
+          "port_dir": "Input",
+          "port_c_dir": "Output"
+        }
+      },
+      "control_word": 138,
+      "output_latch_a": 0,
+      "output_latch_b": 0,
+      "output_latch_c": 0,
+      "input_latch_a": 0,
+      "input_latch_b": 0,
+      "pin_state_a": 255,
+      "pin_state_b": 255,
+      "pin_state_c": 239,
+      "ibf_a": false,
+      "ibf_b": false,
+      "obf_a_active": false,
+      "obf_b_active": false,
+      "intr_a": false,
+      "intr_b": false,
+      "inte_a_in": false,
+      "inte_a_out": false,
+      "inte_b": false
     },
     "user_vv55": {
-      "control": 155,
-      "port_a_out": 0,
-      "port_b_out": 0,
-      "port_c_out": 0
+      "config": {
+        "group_a": {
+          "mode": "Mode0",
+          "port_dir": "Input",
+          "port_c_dir": "Input"
+        },
+        "group_b": {
+          "mode": "Mode0",
+          "port_dir": "Input",
+          "port_c_dir": "Input"
+        }
+      },
+      "control_word": 155,
+      "output_latch_a": 0,
+      "output_latch_b": 0,
+      "output_latch_c": 0,
+      "input_latch_a": 0,
+      "input_latch_b": 0,
+      "pin_state_a": 255,
+      "pin_state_b": 255,
+      "pin_state_c": 255,
+      "ibf_a": false,
+      "ibf_b": false,
+      "obf_a_active": false,
+      "obf_b_active": false,
+      "intr_a": false,
+      "intr_b": false,
+      "inte_a_in": false,
+      "inte_a_out": false,
+      "inte_b": false
     },
     "keyboard": {
       "matrix": [
