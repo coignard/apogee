@@ -14,7 +14,7 @@ Apogee BK-01 emulator with MIDI support via PPI
 
 <picture>
   <source srcset="https://github.com/coignard/apogee/blob/main/assets/apogee.gif?raw=true">
-  <img src="assets/apogee.gif" alt="Apogee BK-01" height="600">
+  <img src="assets/apogee.gif" alt="Apogee BK-01" height="512">
 </picture>
 
 </div>
