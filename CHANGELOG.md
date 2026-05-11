@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.5
+
+### Added
+
+- `TimerMode` enum replacing raw `u8` mode field: `InterruptOnTerminalCount`, `HardwareRetriggerableOneShot`, `RateGenerator`, `SquareWave`, `SoftwareTriggeredStrobe`, `HardwareTriggeredStrobe`
+- `ChannelState` enum formalising the channel lifecycle: `Unprogrammed`, `WaitLoad`, `WaitTrigger`, `Counting`; counter decrements only in `Counting` state, preventing premature ticks before the reload constant is fully written
+- `LatchState` enum isolating the latch command into `LsbOnly(u8)`, `MsbOnly(u8)`, and `LsbThenMsb(u8, u8)` variants; repeated latch commands ignored while latch is pending, matching datasheet behaviour; reading `LsbThenMsb` transitions to `MsbOnly` without disturbing `RwPhase`
+- `RwPhase::toggle()` helper replacing manual reassignment at both read and write sites
+- `set_gate()` on `TimerChannel` with explicit rising and falling edge detection; rising edge arms hardware-triggered modes (1, 5) and reloads rate generators (2, 3); falling edge forces `out_pin` high in modes 2 and 3
+- `decrement_binary_value` and `decrement_bcd_value` free functions with correct wrap-around through zero; BCD correction applied per-tetrad via `BCD_CORRECTIONS` table; Mode 3 BCD decrements run in a loop to preserve inter-tetrad carry
+- `strobe_fired` guard on `TimerChannel`: Mode 4 and 5 strobe pulse lasts exactly one system tick; further counter wrap does not re-assert the output
+- `Deserialize` derived on all `Kr580Vi53` types to support snapshot restore and deterministic replay
+
+### Changed
+
+- Mode 3 square wave rewritten: counter decrements by 2 per tick; odd reload values produce asymmetric half-periods with the high phase one tick longer than the low phase; special-cased constants for reload values 1 and 3 removed
+- Mode 0 two-byte write now forces `ChannelState::WaitLoad` on LSB receipt, blocking counting until MSB arrives
+- Gate level sensitivity check unified into `TimerMode::is_gate_level_sensitive()`; tick returns early for all level-sensitive modes while gate is low
+- `reload_pending` path sets `working_counter` from `effective_reload_value()` and resets `strobe_fired` before returning; `out_pin` initialised per mode on every reload
+- Replay metadata fields `autorun`, `color_mode`, `is_crt`, and `sample_rate` now override CLI arguments when running in playback mode, guaranteeing deterministic audio timing and display state
+- RKA validation, SHA-256 computation, and `rom_name` extraction consolidated into a single destructuring block; redundant intermediate variables removed
+- MIDI initialisation refactored into a single expression returning `Option`; non-Unix fallback now explicitly returns `None` via `cfg(not(unix))` branch
+- Test snapshots regenerated following `Kr580Vi53` refactor; channel fields renamed and mode values changed from integers to enum variant names
+
 ## 0.2.4
 
 ### Added
