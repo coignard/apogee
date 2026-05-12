@@ -30,6 +30,7 @@ const STATUS_VALID_BITS_MASK: u8 = 0x7F;
 
 const PORT_MASK: u16 = 1;
 const PORT_STATUS_CMD: u16 = 1;
+const OPEN_BUS_VALUE: u8 = 0xFF;
 
 const COMMAND_SHIFT: u8 = 5;
 const CMD_RESET: u8 = 0;
@@ -69,12 +70,12 @@ const DEFAULT_UNDERLINE_LINE: u8 = 9;
 const CHAR_MSB_MASK: u8 = 0x80;
 const CHAR_CODE_MASK: u8 = 0x7F;
 
-const ATTR_TRANSPARENT_MASK: u8 = 0xC0;
-const ATTR_TRANSPARENT_VAL: u8 = 0x80;
+const FIELD_ATTRIBUTE_MASK: u8 = 0xC0;
+const FIELD_ATTRIBUTE_VAL: u8 = 0x80;
 
-const ATTR_PSEUDOGRAPHIC_MASK: u8 = 0xC0;
-const ATTR_PSEUDOGRAPHIC_VAL: u8 = 0xC0;
-const ATTR_PSEUDOGRAPHIC_EXCLUSION: u8 = 0x30;
+const CHAR_ATTRIBUTE_MASK: u8 = 0xC0;
+const CHAR_ATTRIBUTE_VAL: u8 = 0xC0;
+const CHAR_ATTRIBUTE_EXCLUSION: u8 = 0x30;
 const CHAR_ATTR_INDEX_MASK: u8 = 0x3C;
 const CHAR_ATTR_INDEX_SHIFT: u8 = 2;
 
@@ -109,6 +110,8 @@ const CURSOR_Y_MASK: u8 = 0x3F;
 const MAX_FIFO_LEN: usize = 16;
 const MAX_ROWS: usize = 64;
 const MAX_CHARS: usize = 80;
+const MAX_LINES_PER_ROW: usize = 16;
+const UNDERLINE_MSB_THRESHOLD: u8 = 7;
 
 #[derive(Clone, Copy)]
 pub struct CharAttrBehavior {
@@ -376,6 +379,7 @@ pub struct Kr580Vg75 {
     display_fifo: [u8; MAX_FIFO_LEN],
     fill_fifo: [u8; MAX_FIFO_LEN],
     fill_fifo_pos: usize,
+    display_fifo_pos: usize,
 
     next_to_fifo: bool,
     dma_stopped_for_row: bool,
@@ -447,6 +451,7 @@ impl Kr580Vg75 {
             display_fifo: [0; MAX_FIFO_LEN],
             fill_fifo: [0; MAX_FIFO_LEN],
             fill_fifo_pos: 0,
+            display_fifo_pos: 0,
 
             next_to_fifo: false,
             dma_stopped_for_row: false,
@@ -535,28 +540,9 @@ impl Kr580Vg75 {
         if (port & PORT_MASK) == PORT_STATUS_CMD {
             let s = self.status;
             self.status = s & STATUS_READ_PRESERVE_MASK;
-            s
+            s & STATUS_VALID_BITS_MASK
         } else {
             match self.cmd {
-                Vg75Cmd::Reset => {
-                    let val = self.reset_param[self.param_num];
-                    self.param_num += 1;
-                    if self.param_num == RESET_PARAM_COUNT {
-                        self.cmd = Vg75Cmd::None;
-                        self.param_num = 0;
-                    }
-                    val
-                }
-                Vg75Cmd::LoadCursor => {
-                    if self.param_num == PARAM_POS_CHAR {
-                        self.param_num = PARAM_POS_ROW;
-                        self.cursor_x
-                    } else {
-                        self.param_num = PARAM_POS_CHAR;
-                        self.cmd = Vg75Cmd::None;
-                        self.cursor_y
-                    }
-                }
                 Vg75Cmd::ReadLpen => {
                     if self.param_num == PARAM_POS_CHAR {
                         self.param_num = PARAM_POS_ROW;
@@ -567,9 +553,9 @@ impl Kr580Vg75 {
                         self.lpen_y
                     }
                 }
-                Vg75Cmd::None => {
+                _ => {
                     self.status |= STATUS_IMPROPER_CMD;
-                    self.status & STATUS_VALID_BITS_MASK
+                    OPEN_BUS_VALUE
                 }
             }
         }
@@ -587,7 +573,7 @@ impl Kr580Vg75 {
                 CMD_RESET => {
                     self.cmd = Vg75Cmd::Reset;
                     self.param_num = 0;
-                    self.status &= !(STATUS_INT_ENABLE | STATUS_VIDEO_ENABLE);
+                    self.status &= !(STATUS_INT_ENABLE | STATUS_VIDEO_ENABLE | STATUS_INT_REQUEST);
                     self.start_raster_if_not_started();
                 }
                 CMD_START_DISPLAY => {
@@ -639,6 +625,7 @@ impl Kr580Vg75 {
                     self.display_row_buffer.clear();
                     self.fill_row_buffer.clear();
                     self.fill_fifo_pos = 0;
+                    self.display_fifo_pos = 0;
                     self.next_to_fifo = false;
                     self.dma_stopped_for_row = false;
                     self.dma_state = DmaState::Idle;
@@ -647,7 +634,6 @@ impl Kr580Vg75 {
                     self.cclk_wait_timer = 0;
                     self.reset_field_attributes();
                     self.is_blanked_to_end_of_screen = false;
-                    self.status &= !STATUS_VIDEO_ENABLE;
                 }
                 _ => {}
             }
@@ -730,7 +716,7 @@ impl Kr580Vg75 {
                     }
                     self.dma_stopped_for_row = true;
                 }
-            } else if self.transparent_attr && (c & ATTR_TRANSPARENT_MASK) == ATTR_TRANSPARENT_VAL {
+            } else if self.transparent_attr && (c & FIELD_ATTRIBUTE_MASK) == FIELD_ATTRIBUTE_VAL {
                 self.next_to_fifo = true;
             }
         }
@@ -832,6 +818,7 @@ impl Kr580Vg75 {
             std::mem::swap(&mut self.display_row_buffer, &mut self.fill_row_buffer);
             self.fill_row_buffer.clear();
             self.display_fifo = self.fill_fifo;
+            self.display_fifo_pos = self.fill_fifo_pos;
             self.render_current_row();
         } else {
             self.fill_row_buffer.clear();
@@ -887,28 +874,32 @@ impl Kr580Vg75 {
 
     fn render_current_row(&mut self) {
         let mut is_blanked_to_end_of_row = false;
-        let mut fifo_read_pos = 0;
+        let mut fifo_read_pos = if self.display_fifo_pos > MAX_FIFO_LEN {
+            self.display_fifo_pos % MAX_FIFO_LEN
+        } else {
+            0
+        };
         let is_spaced_row_blank = self.spaced_rows && (self.crt_scan_row % 2 != 0);
 
         for i in 0..(self.n_chars as usize) {
             let mut c = self.display_row_buffer.get(i).copied().unwrap_or(0);
 
-            if self.was_dma_underrun
-                || is_blanked_to_end_of_row
+            let is_forced_blank = self.was_dma_underrun
                 || self.is_blanked_to_end_of_screen
                 || !self.is_display_enabled()
-                || is_spaced_row_blank
-            {
-                c = 0;
-            }
+                || is_spaced_row_blank;
 
-            if self.transparent_attr && (c & ATTR_TRANSPARENT_MASK) == ATTR_TRANSPARENT_VAL {
-                self.attr_underline = (c & CHAR_ATTR_UNDERLINE) != 0;
-                self.attr_reverse = (c & CHAR_ATTR_REVERSE) != 0;
-                self.attr_blink = (c & CHAR_ATTR_BLINK) != 0;
-                self.attr_highlight = (c & CHAR_ATTR_HIGHLIGHT) != 0;
-                self.attr_gpa0 = (c & CHAR_ATTR_GPA0) != 0;
-                self.attr_gpa1 = (c & CHAR_ATTR_GPA1) != 0;
+            let mut is_effectively_blanked = is_forced_blank || is_blanked_to_end_of_row;
+
+            if self.transparent_attr && (c & FIELD_ATTRIBUTE_MASK) == FIELD_ATTRIBUTE_VAL {
+                if !is_effectively_blanked {
+                    self.attr_underline = (c & CHAR_ATTR_UNDERLINE) != 0;
+                    self.attr_reverse = (c & CHAR_ATTR_REVERSE) != 0;
+                    self.attr_blink = (c & CHAR_ATTR_BLINK) != 0;
+                    self.attr_highlight = (c & CHAR_ATTR_HIGHLIGHT) != 0;
+                    self.attr_gpa0 = (c & CHAR_ATTR_GPA0) != 0;
+                    self.attr_gpa1 = (c & CHAR_ATTR_GPA1) != 0;
+                }
 
                 c = self.display_fifo[fifo_read_pos];
                 fifo_read_pos = (fifo_read_pos + 1) % MAX_FIFO_LEN;
@@ -919,12 +910,17 @@ impl Kr580Vg75 {
                 ..Default::default()
             };
 
-            if !self.is_display_enabled()
-                || is_blanked_to_end_of_row
-                || self.is_blanked_to_end_of_screen
-                || self.was_dma_underrun
-                || is_spaced_row_blank
-            {
+            if (c & SPECIAL_CODE_MASK) == SPECIAL_CODE_VAL {
+                if (c & SPECIAL_CODE_EOF_BIT) != 0 {
+                    self.is_blanked_to_end_of_screen = true;
+                } else {
+                    is_blanked_to_end_of_row = true;
+                }
+                is_effectively_blanked = true;
+            }
+
+            if is_effectively_blanked {
+                sym.chr = 0;
                 sym.set_rvv(false);
                 sym.set_hglt(false);
                 sym.set_gpa0(false);
@@ -944,13 +940,8 @@ impl Kr580Vg75 {
                         self.attr_blink && (self.frame_count & BLINK_DIV_32_MASK) != 0,
                     );
                     sym.set_lten(j, false);
-                    if self.und_line > 7
-                        && (j == 0 || j == (self.n_lines as usize).saturating_sub(1))
-                    {
-                        sym.set_vsp(j, true);
-                    }
                 }
-                if self.attr_underline && (self.und_line as usize) < 16 {
+                if self.attr_underline && (self.und_line as usize) < MAX_LINES_PER_ROW {
                     let lten_val = if self.attr_blink {
                         (self.frame_count & BLINK_DIV_32_MASK) == 0
                     } else {
@@ -958,7 +949,7 @@ impl Kr580Vg75 {
                     };
                     sym.set_lten(self.und_line as usize, lten_val);
                 }
-            } else if (c & ATTR_TRANSPARENT_MASK) == ATTR_TRANSPARENT_VAL {
+            } else if (c & FIELD_ATTRIBUTE_MASK) == FIELD_ATTRIBUTE_VAL {
                 self.attr_underline = (c & CHAR_ATTR_UNDERLINE) != 0;
                 self.attr_reverse = (c & CHAR_ATTR_REVERSE) != 0;
                 self.attr_blink = (c & CHAR_ATTR_BLINK) != 0;
@@ -973,8 +964,8 @@ impl Kr580Vg75 {
                 sym.set_hglt(self.attr_highlight);
                 sym.set_gpa0(self.attr_gpa0);
                 sym.set_gpa1(self.attr_gpa1);
-            } else if (c & ATTR_PSEUDOGRAPHIC_MASK) == ATTR_PSEUDOGRAPHIC_VAL
-                && (c & ATTR_PSEUDOGRAPHIC_EXCLUSION) != ATTR_PSEUDOGRAPHIC_EXCLUSION
+            } else if (c & CHAR_ATTRIBUTE_MASK) == CHAR_ATTRIBUTE_VAL
+                && (c & CHAR_ATTRIBUTE_EXCLUSION) != CHAR_ATTRIBUTE_EXCLUSION
             {
                 let cccc = ((c & CHAR_ATTR_INDEX_MASK) >> CHAR_ATTR_INDEX_SHIFT) as usize;
                 let def = CHAR_ATTR_DEFS[cccc];
@@ -998,12 +989,6 @@ impl Kr580Vg75 {
                 sym.set_gpa0(self.attr_gpa0);
                 sym.set_gpa1(self.attr_gpa1);
             } else {
-                if (c & SPECIAL_CODE_MASK) == SPECIAL_CODE_VAL && (c & SPECIAL_CODE_EOF_BIT) != 0 {
-                    self.is_blanked_to_end_of_screen = true;
-                } else {
-                    is_blanked_to_end_of_row = true;
-                }
-
                 sym.set_rvv(self.attr_reverse);
                 sym.set_hglt(self.attr_highlight);
                 sym.set_gpa0(self.attr_gpa0);
@@ -1012,9 +997,14 @@ impl Kr580Vg75 {
                     sym.set_vsp(j, true);
                     sym.set_lten(j, false);
                 }
-                if self.attr_underline && (self.und_line as usize) < 16 {
+                if self.attr_underline && (self.und_line as usize) < MAX_LINES_PER_ROW {
                     sym.set_lten(self.und_line as usize, true);
                 }
+            }
+
+            if self.und_line > UNDERLINE_MSB_THRESHOLD && self.n_lines > 0 {
+                sym.set_vsp(0, true);
+                sym.set_vsp((self.n_lines as usize).saturating_sub(1), true);
             }
 
             if (self.crt_scan_row as usize) < MAX_ROWS && i < MAX_CHARS {
@@ -1029,16 +1019,16 @@ impl Kr580Vg75 {
             let cx = self.cursor_x as usize;
             if cx < self.n_chars as usize && (self.crt_scan_row as usize) < MAX_ROWS {
                 if self.cursor_under {
-                    if (self.und_line as usize) < 16 {
-                        let blink_state =
-                            !self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0;
-                        self.parsed_frame[self.crt_scan_row as usize][cx]
-                            .set_lten(self.und_line as usize, blink_state);
+                    if (self.und_line as usize) < MAX_LINES_PER_ROW {
+                        if !self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0 {
+                            self.parsed_frame[self.crt_scan_row as usize][cx]
+                                .set_lten(self.und_line as usize, true);
+                        }
                     }
                 } else {
                     if !self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0 {
-                        let current_rvv = self.parsed_frame[self.crt_scan_row as usize][cx].rvv();
-                        self.parsed_frame[self.crt_scan_row as usize][cx].set_rvv(!current_rvv);
+                        let rvv = self.parsed_frame[self.crt_scan_row as usize][cx].rvv();
+                        self.parsed_frame[self.crt_scan_row as usize][cx].set_rvv(!rvv);
                     }
                 }
             }
