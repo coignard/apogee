@@ -218,8 +218,7 @@ impl Kr580Vt57 {
         let is_tc = count_val == 0;
 
         let new_count = count_val.wrapping_sub(1) & COUNT_MASK;
-        self.channels[ch].count =
-            (self.channels[ch].count & COUNT_MODE_PRESERVE_MASK) | new_count;
+        self.channels[ch].count = (self.channels[ch].count & COUNT_MODE_PRESERVE_MASK) | new_count;
 
         if is_tc {
             self.status |= 1 << (ch as u8);
@@ -300,15 +299,17 @@ impl Kr580Vt57 {
             let is_count = (port & PORT_A0_MASK) != 0;
 
             if is_count {
-                self.channels[channel].count =
-                    self.byte_phase.apply_to_u16(self.channels[channel].count, val);
+                self.channels[channel].count = self
+                    .byte_phase
+                    .apply_to_u16(self.channels[channel].count, val);
 
                 if channel == CHANNEL_2 && (self.mode & MODE_AUTO_LOAD) != 0 {
                     self.channels[CHANNEL_3].count = self.channels[CHANNEL_2].count;
                 }
             } else {
-                self.channels[channel].address =
-                    self.byte_phase.apply_to_u16(self.channels[channel].address, val);
+                self.channels[channel].address = self
+                    .byte_phase
+                    .apply_to_u16(self.channels[channel].address, val);
 
                 if channel == CHANNEL_2 && (self.mode & MODE_AUTO_LOAD) != 0 {
                     self.channels[CHANNEL_3].address = self.channels[CHANNEL_2].address;
