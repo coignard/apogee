@@ -126,6 +126,11 @@ impl Machine {
     }
 
     #[inline]
+    pub fn font_banks(&self) -> &[bool; 64] {
+        &self.bus.font_banks
+    }
+
+    #[inline]
     pub fn cycle_count(&self) -> u64 {
         self.total_cycles
     }
@@ -264,23 +269,32 @@ impl Machine {
         };
 
         while !vblank_occurred && frame_cycles < target_cycles {
-            let halt_cycles = self.bus.vt57.halt_cycles();
+            let vg75_drq = self.bus.vg75.drq();
+            self.bus.vt57.set_drq(2, vg75_drq);
 
-            let elapsed_cycles = if halt_cycles > 0 {
-                self.bus.vt57.sub_halt_cycles(halt_cycles);
-                halt_cycles
+            let elapsed_cycles;
+
+            if self.bus.vt57.hrq() {
+                self.bus.vt57.set_hlda(true);
+
+                if let Some((channel, addr, _tc)) = self.bus.vt57.dma_transfer_cycle()
+                    && channel == 2
+                {
+                    let byte = self.bus.ram[addr as usize];
+                    self.bus.vg75.dack(byte);
+                }
+                elapsed_cycles = 4;
             } else {
-                self.execute_cpu_instruction()
-            };
+                self.bus.vt57.set_hlda(false);
+                elapsed_cycles = self.execute_cpu_instruction();
+            }
 
             frame_cycles += elapsed_cycles;
             self.total_cycles += elapsed_cycles as u64;
 
             for _ in 0..elapsed_cycles {
-                self.bus.vg75.tick(&mut self.bus.vt57, &self.bus.ram);
-
                 let vi53_mixed = self.bus.vi53.tick();
-                let tape_out = self.bus.sys_vv55.is_tape_out_active();
+                let tape_out = (self.bus.sys_vv55.peripheral_read_c() & 0x01) != 0;
 
                 if let Some(sample) = self.audio_mixer.tick(vi53_mixed, tape_out) {
                     push_sample(sample);
@@ -295,6 +309,20 @@ impl Machine {
                     }
                 }
             }
+
+            let (inte, _) = self.cpu.immutable_registers().get_interrupt_mode();
+            let cur_row = self.bus.vg75.current_row();
+
+            if self.bus.previous_row > cur_row {
+                self.bus.previous_row = 0;
+            }
+
+            for r in self.bus.previous_row..=cur_row {
+                if r < self.bus.font_banks.len() {
+                    self.bus.font_banks[r] = inte;
+                }
+            }
+            self.bus.previous_row = cur_row;
         }
 
         vblank_occurred
@@ -306,9 +334,6 @@ impl Machine {
         let cycles_before = self.cpu.cycle_count();
         self.cpu.execute_instruction(&mut self.bus);
         let cycles_after = self.cpu.cycle_count();
-
-        let (inte, _) = self.cpu.immutable_registers().get_interrupt_mode();
-        self.bus.vg75.set_inte(inte);
 
         if self.cpu.is_halted() {
             4
