@@ -68,6 +68,7 @@ fn replay_matches_snapshot(replay_path_str: &str) {
     }
 
     let update_snapshots = std::env::var("UPDATE_SNAPSHOTS").is_ok();
+    let update_screenshots = std::env::var("UPDATE_SCREENSHOTS").is_ok();
 
     while !player.is_finished() {
         let snapshots = player.apply_pending_events(&mut machine);
@@ -94,38 +95,87 @@ fn replay_matches_snapshot(replay_path_str: &str) {
             }
 
             let png_path = format!("tests/dumps/{}/{}.png", base_name, snap);
-            let expected_img = image::open(&png_path)
-                .unwrap_or_else(|_| panic!("Failed to open expected PNG: {}", png_path))
-                .into_rgba8();
-
-            let expected_pixels = expected_img.as_raw();
             let actual_pixels = video.frame_buffer();
+            let width = video.width();
+            let height = video.height();
 
-            assert_eq!(
-                actual_pixels.len(),
-                expected_pixels.len(),
-                "framebuffer size mismatch at snapshot '{}'",
-                snap
-            );
+            if update_screenshots {
+                if let Ok(old_img) = image::open(&png_path) {
+                    let old_rgba = old_img.into_rgba8();
+                    let expected_pixels = old_rgba.as_raw();
 
-            if actual_pixels != expected_pixels {
-                let mut diffs = 0;
-                let mut first_diff = None;
+                    if actual_pixels != expected_pixels {
+                        let before_path = format!("{}_before.png", snap);
+                        let after_path = format!("{}_after.png", snap);
 
-                for (i, (&a, &e)) in actual_pixels.iter().zip(expected_pixels.iter()).enumerate() {
-                    if a != e {
-                        diffs += 1;
-                        if first_diff.is_none() {
-                            first_diff = Some((i, a, e));
+                        let _ = image::save_buffer(
+                            &before_path,
+                            expected_pixels,
+                            old_rgba.width(),
+                            old_rgba.height(),
+                            image::ExtendedColorType::Rgba8,
+                        );
+
+                        let _ = image::save_buffer(
+                            &after_path,
+                            actual_pixels,
+                            width,
+                            height,
+                            image::ExtendedColorType::Rgba8,
+                        );
+
+                        image::save_buffer(
+                            &png_path,
+                            actual_pixels,
+                            width,
+                            height,
+                            image::ExtendedColorType::Rgba8,
+                        )
+                        .unwrap_or_else(|_| panic!("Failed to overwrite PNG: {}", png_path));
+                    }
+                } else {
+                    image::save_buffer(
+                        &png_path,
+                        actual_pixels,
+                        width,
+                        height,
+                        image::ExtendedColorType::Rgba8,
+                    )
+                    .unwrap_or_else(|_| panic!("Failed to create new PNG: {}", png_path));
+                }
+            } else {
+                let expected_img = image::open(&png_path)
+                    .unwrap_or_else(|_| panic!("Failed to open expected PNG: {}", png_path))
+                    .into_rgba8();
+
+                let expected_pixels = expected_img.as_raw();
+
+                assert_eq!(
+                    actual_pixels.len(),
+                    expected_pixels.len(),
+                    "framebuffer size mismatch at snapshot '{}'",
+                    snap
+                );
+
+                if actual_pixels != expected_pixels {
+                    let mut diffs = 0;
+                    let mut first_diff = None;
+
+                    for (i, (&a, &e)) in actual_pixels.iter().zip(expected_pixels.iter()).enumerate() {
+                        if a != e {
+                            diffs += 1;
+                            if first_diff.is_none() {
+                                first_diff = Some((i, a, e));
+                            }
                         }
                     }
-                }
 
-                if let Some((idx, act, exp)) = first_diff {
-                    panic!(
-                        "pixel mismatch at snapshot '{}' (ROM: {}): {} bytes differ, first at [{}]: actual={}, expected={}",
-                        snap, base_name, diffs, idx, act, exp
-                    );
+                    if let Some((idx, act, exp)) = first_diff {
+                        panic!(
+                            "pixel mismatch at snapshot '{}' (ROM: {}): {} bytes differ, first at [{}]: actual={}, expected={}",
+                            snap, base_name, diffs, idx, act, exp
+                        );
+                    }
                 }
             }
         }
@@ -133,7 +183,7 @@ fn replay_matches_snapshot(replay_path_str: &str) {
         let vblank_occurred = machine.tick(|_| {});
 
         if vblank_occurred {
-            video.render_frame(machine.vg75());
+            video.render_frame(machine.vg75(), machine.font_banks());
         }
     }
 }
