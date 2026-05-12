@@ -1038,10 +1038,11 @@ impl Kr580Vg75 {
             if cx < self.n_chars as usize && (self.crt_scan_row as usize) < MAX_ROWS {
                 if self.cursor_under {
                     if (self.und_line as usize) < MAX_LINES_PER_ROW
-                        && (!self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0) {
-                            self.parsed_frame[self.crt_scan_row as usize][cx]
-                                .set_lten(self.und_line as usize, true);
-                        }
+                        && (!self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0)
+                    {
+                        self.parsed_frame[self.crt_scan_row as usize][cx]
+                            .set_lten(self.und_line as usize, true);
+                    }
                 } else {
                     if !self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0 {
                         let rvv = self.parsed_frame[self.crt_scan_row as usize][cx].rvv();
