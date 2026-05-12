@@ -281,11 +281,11 @@ impl Machine {
                     let byte = self.bus.ram[addr as usize];
                     self.bus.vg75.dack(byte);
                 }
-                elapsed_cycles = 4;
+                4
             } else {
                 self.bus.vt57.set_hlda(false);
-                elapsed_cycles = self.execute_cpu_instruction();
-            }
+                self.execute_cpu_instruction()
+            };
 
             frame_cycles += elapsed_cycles;
             self.total_cycles += elapsed_cycles as u64;
