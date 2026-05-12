@@ -272,9 +272,7 @@ impl Machine {
             let vg75_drq = self.bus.vg75.drq();
             self.bus.vt57.set_drq(2, vg75_drq);
 
-            let elapsed_cycles;
-
-            if self.bus.vt57.hrq() {
+            let elapsed_cycles = if self.bus.vt57.hrq() {
                 self.bus.vt57.set_hlda(true);
 
                 if let Some((channel, addr, _tc)) = self.bus.vt57.dma_transfer_cycle()
