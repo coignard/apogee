@@ -646,7 +646,8 @@ impl Kr580Vg75 {
                         self.cmd = Vg75Cmd::None;
                         let rp = self.reset_param;
                         self.spaced_rows = (rp[0] & RESET_SPACED_ROWS_MASK) != 0;
-                        self.n_chars = ((rp[0] & RESET_CHARS_PER_ROW_MASK) + 1).min(MAX_CHARS as u8);
+                        self.n_chars =
+                            ((rp[0] & RESET_CHARS_PER_ROW_MASK) + 1).min(MAX_CHARS as u8);
                         self.n_vr_rows = ((rp[1] & RESET_VR_ROWS_MASK) >> RESET_VR_ROWS_SHIFT) + 1;
                         self.n_rows = (rp[1] & RESET_DISPLAY_ROWS_MASK) + 1;
                         self.und_line =
