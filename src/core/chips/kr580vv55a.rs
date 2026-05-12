@@ -87,8 +87,6 @@ const PIN_M2_INTR_A: u8 = BIT_MASK_PC3;
 const PIN_M2_INTE_1_A: u8 = BIT_MASK_PC6;
 const PIN_M2_INTE_2_A: u8 = BIT_MASK_PC4;
 
-const TAPE_OUT_BIT_MASK: u8 = BIT_MASK_PC0;
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mode {
     #[default]
@@ -183,11 +181,6 @@ impl Kr580Vv55a {
         self.pin_state_a = ALL_PINS_MASK;
         self.pin_state_b = ALL_PINS_MASK;
         self.pin_state_c = ALL_PINS_MASK;
-    }
-
-    #[inline]
-    pub fn is_tape_out_active(&self) -> bool {
-        (self.peripheral_read_c() & TAPE_OUT_BIT_MASK) != 0
     }
 
     fn apply_control_word(&mut self, val: u8) {
