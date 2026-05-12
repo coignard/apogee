@@ -83,7 +83,7 @@ impl VideoRenderer {
         &self.frame_buffer
     }
 
-    pub fn render_frame(&mut self, vg75: &Kr580Vg75) -> bool {
+    pub fn render_frame(&mut self, vg75: &Kr580Vg75, font_banks: &[bool; 64]) -> bool {
         let parsed_frame = vg75.parsed_frame();
         let max_rows = parsed_frame.len();
         let max_chars = parsed_frame[0].len();
@@ -115,7 +115,7 @@ impl VideoRenderer {
         }
 
         for (row, frame_row) in parsed_frame.iter().enumerate().take(n_rows) {
-            let chargen = if vg75.row_font_bank(row % 64) {
+            let chargen = if font_banks[row % 64] {
                 FONT_ALT_BANK_OFFSET
             } else {
                 0
