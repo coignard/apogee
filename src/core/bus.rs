@@ -17,6 +17,7 @@
 
 use iz80::Machine;
 use serde::Serialize;
+use serde_big_array::BigArray;
 use sha2::{Digest, Sha256};
 
 use super::chips::kr580vg75::Kr580Vg75;
@@ -66,6 +67,10 @@ pub struct Bus {
     pub(crate) keyboard: Keyboard,
     pub(crate) user_slot: UserPeripheral,
 
+    #[serde(with = "BigArray")]
+    pub(crate) font_banks: [bool; 64],
+    pub(crate) previous_row: usize,
+
     #[serde(skip)]
     pub(crate) current_cycle: u64,
 }
@@ -82,6 +87,8 @@ impl Bus {
             user_vv55: Kr580Vv55a::new(),
             keyboard: Keyboard::new(),
             user_slot: UserPeripheral::None,
+            font_banks: [false; 64],
+            previous_row: 0,
             current_cycle: 0,
         }
     }
