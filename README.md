@@ -55,7 +55,7 @@ Or to pin a specific version:
 
 ```toml
 [dependencies]
-apogee-rs = { git = "https://github.com/coignard/apogee", tag = "0.2.4" }
+apogee-rs = { git = "https://github.com/coignard/apogee", tag = "0.3.0" }
 ```
 
 ## Test
