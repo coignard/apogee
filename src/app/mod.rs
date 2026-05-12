@@ -671,7 +671,7 @@ fn run_emulation(
                     }
                 }
             }
-            video.render_frame(machine.vg75());
+            video.render_frame(machine.vg75(), machine.font_banks());
             send_frame(&video, &frame_tx);
             step_frame = false;
             continue;
@@ -692,7 +692,7 @@ fn run_emulation(
                         if ff_skip_counter >= 5 {
                             ff_skip_counter = 0;
                             if !frame_tx.is_full() {
-                                video.render_frame(machine.vg75());
+                                video.render_frame(machine.vg75(), machine.font_banks());
                                 send_frame(&video, &frame_tx);
                             }
                         }
@@ -722,7 +722,7 @@ fn run_emulation(
             ) {
                 Ok(vblank_occurred) => {
                     if vblank_occurred {
-                        video.render_frame(machine.vg75());
+                        video.render_frame(machine.vg75(), machine.font_banks());
                         send_frame(&video, &frame_tx);
                     }
                 }
