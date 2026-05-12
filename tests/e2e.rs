@@ -161,7 +161,9 @@ fn replay_matches_snapshot(replay_path_str: &str) {
                     let mut diffs = 0;
                     let mut first_diff = None;
 
-                    for (i, (&a, &e)) in actual_pixels.iter().zip(expected_pixels.iter()).enumerate() {
+                    for (i, (&a, &e)) in
+                        actual_pixels.iter().zip(expected_pixels.iter()).enumerate()
+                    {
                         if a != e {
                             diffs += 1;
                             if first_diff.is_none() {
