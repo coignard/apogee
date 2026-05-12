@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.3.0
+
+Version 0.3.0 is a complete rewrite of all core chip emulations. The timing model is now different from emu80-based emulators and from all prior versions of this project.
+
+The VG75 interrupt request now fires at the beginning of the last display row as the i8275 datasheet specifies; previously it fired after that row, at the start of vertical retrace. The display pipeline now implements the hardware dual row buffer: DMA-fetched data fills a back buffer while the front buffer is rendered, so the displayed image lags the memory read by exactly one character row as on real hardware. DMA burst spacing is now counted strictly in character clocks (CCLK) with authentic HRQ/HLDA bus arbitration, replacing a raw tick countdown that drifted out of phase with the video signal.
+
+### Added
+
+- `display_row_buffer` and `fill_row_buffer` double-buffering in `KR580VG75`: fill buffer receives DMA bytes while display buffer is rendered; buffers swapped atomically in `begin_row()`
+- `display_fifo` and `fill_fifo` replacing the single `fifo` field; `fill_fifo_pos` overflow detection and `display_fifo_pos` tracking fill position across double-buffer swap so FIFO reads start at the correct offset on overflow
+- `CharAttrBehavior` struct and `CHAR_ATTR_DEFS` table extended to 16 entries covering the full attribute index space, replacing the parallel `CHAR_ATTR_VSP`/`CHAR_ATTR_LTEN` arrays
+- `STATUS_LIGHT_PEN` constant; `trigger_light_pen()` storing `crt_x`/`crt_scan_row`; `lpen_x`/`lpen_y` fields; `ReadLpen` now returns actual captured coordinates
+- `drq()` and `current_row()` on `KR580VG75` for bus-level tracking replacing the removed `set_inte()` / `row_font_bank()` interface
+- `DmaChannel` struct holding address and count per channel; `DmaOperation` enum derived from count register upper bits, in `KR580VT57`
+- `drq[]`, `hlda`, and `last_serviced_channel` fields on `KR580VT57` for proper HRQ/HLDA handshake
+- `hrq()`, `set_drq()`, `set_hlda()`, `dma_transfer_cycle()` on `KR580VT57`; `dma_transfer_cycle()` selects next channel with rotating or fixed priority
+- `hardware_reset()` on `KR580VT57` reinitializing transient state without clearing channel config
+- `read()` on `KR580VT57` exposing address/count registers and clearable TC status byte
+- `MODE_TC_STOP` disabling channel on terminal count; `MODE_AUTO_LOAD` copying ch3 into ch2 on ch2 terminal count via `STATUS_UPDATE_FLAG`; `MODE_ROTATING_PRIORITY` cycling service order across channels
+- `BytePhase::reset()` and `apply_to_u16()` on `KR580VT57` eliminating repeated match/shift boilerplate
+- `Mode`, `Direction` enums in `KR580VV55A` replacing CWR bit-flag checks
+- `GroupConfig` and `Config` structs in `KR580VV55A` encapsulating group A/B configuration
+- `output_latch_a/b/c`, `input_latch_a/b`, and `pin_state_a/b/c` fields on `KR580VV55A` separating CPU and peripheral data paths
+- `port_c_base_value()` composing input pins and output latch per direction config; `cpu_read_port_c_status_word()` exposing IBF/OBF/INTR/INTE flags; `peripheral_write_c()` with falling-edge detection for STB/ACK signals; `update_interrupts()` deriving INTR_A and INTR_B from INTE, IBF/OBF, and strobe state
+- `hardware_reset()` on `KR580VV55A` initializing all pins high and applying default all-input Mode 0 control word
+- `font_banks: [bool; 64]` and `previous_row: usize` fields on `Bus` for per-row INTE tracking
+- `font_banks()` accessor on `Machine` returning `&[bool; 64]`
+- `OPEN_BUS_VALUE`, `STATUS_VALID_BITS_MASK`, `STATUS_LIGHT_PEN`, `SPECIAL_CODE_EOF_BIT`, `SPECIAL_CODE_STOP_DMA_BIT`, `MAX_LINES_PER_ROW`, `UNDERLINE_MSB_THRESHOLD` constants replacing magic numbers
+- `COMMAND_SHIFT`, `RESET_VR_ROWS_SHIFT`, `RESET_UNDERLINE_LINE_SHIFT`, `CHAR_MSB_MASK`, `CHAR_CODE_MASK`, `BURST_COUNT_MASK`, `BURST_SPACE_SHIFT`, `BURST_SPACE_MASK`, `BURST_SPACE_MULTIPLIER`, `CURSOR_X_MASK`, `CURSOR_Y_MASK` constants replacing inline magic numbers in VG75 parameter decode
+- `UPDATE_SCREENSHOTS` environment variable for regenerating PNG snapshots in-place; saves `_before`/`_after` side-by-side images when an existing snapshot changes
+- `Deserialize` derived on all `KR580VT57` and `KR580VV55A` types for snapshot restore and deterministic replay
+
+### Changed
+
+- `KR580VG75` fully rewritten with cycle-accurate timing; `begin_row()` replaces `next_row()`/`prepare_next_frame()`/`next_frame()`; frame counter and field attribute reset now driven by `crt_scan_row` wrap; parsed symbols indexed by `crt_scan_row` instead of `crt_cur_row`
+- IRQ raised at `n_rows - 1` (beginning of last display row) instead of at `n_rows` (start of vertical retrace); `vblank` returns `true` at `n_rows`
+- DMA burst spacing counted strictly in CCLK ticks via `cclk_wait_timer` in `tick_char()` instead of CPU-cycle offsets; DMA state tracked through `DmaState` enum (`Idle`, `Requesting`, `WaitingSpace`)
+- DMA handshake in `machine.rs` rewritten around `hrq()`/`set_hlda()`/`dma_transfer_cycle()`; when HRQ is asserted the CPU does not execute, channel 2 reads one byte from RAM and passes it to `vg75.dack()`, and `elapsed_cycles` is fixed at 4; `halt_cycles` model removed
+- `vg75.tick()` no longer accepts `vt57` or `ram` arguments; DRQ signal fed from `vg75.drq()` into `vt57.set_drq(2)` in the machine loop
+- Font bank tracking moved from `KR580VG75` into the machine loop; `font_banks[r]` set to current INTE state for each row completed since the previous tick; `set_inte()`, `finalize_font_banks()`, `row_font_bank()`, `cpu_inte`, `cur_font_bank`, `prev_row`, and `row_font_banks` removed from `KR580VG75`
+- `render_frame()` accepts `font_banks: &[bool; 64]` directly instead of calling `row_font_bank()` on the VG75; all three call sites in `app/mod.rs` updated
+- `SPECIAL_CODE_MASK`/`VAL` corrected from `0xF1`/`0xF0` to `0xFC`/`0xF0`; stop-DMA bit and EOF bit split into `SPECIAL_CODE_STOP_DMA_BIT` and `SPECIAL_CODE_EOF_BIT`
+- `CMD_PRESET_COUNTERS` now initializes `crt_scan_row` to the last scan row instead of 0; `reset_field_attributes()` extracted
+- `start_raster_if_not_started` sets `crt_scan_row` to the last row so `begin_row()` fires on the first CCLK tick rather than skipping the initial fill cycle
+- `CMD_RESET` now clears `STATUS_INT_REQUEST` alongside `INT_ENABLE` and `VIDEO_ENABLE`; redundant `STATUS_VIDEO_ENABLE` clear removed from `CMD_PRESET_COUNTERS`
+- `STATUS_IMPROPER_CMD` set on write with a pending command instead of eagerly on each `CMD_RESET`/`LoadCursor`/`ReadCursor`/`ReadLpen` dispatch
+- Blanking restructured in `render_current_row()`: `is_forced_blank` and `is_effectively_blanked` introduced; special codes detected before character type dispatch; field attribute update skipped when blanked; `und_line > UNDERLINE_MSB_THRESHOLD` VSP override moved outside character type branches to apply unconditionally after all symbol rendering
+- `BLINK_FAST_DIVISOR_MASK`/`BLINK_SLOW_DIVISOR_MASK` renamed to `BLINK_DIV_16_MASK`/`BLINK_DIV_32_MASK`; `ATTR_TRANSPARENT_MASK`/`VAL` replaced with `FIELD_ATTRIBUTE_MASK`/`VAL`; `ATTR_PSEUDOGRAPHIC_MASK`/`VAL`/`EXCLUSION` replaced with `CHAR_ATTRIBUTE_MASK`/`VAL`/`EXCLUSION`
+- `n_chars` clamped to `MAX_CHARS` on reset parameter decode
+- `KR580VT57` fully rewritten; `enabled: bool` replaced with per-channel mode bitmask and `is_enabled(channel)`; `ch2_addr`/`ch2_count`/`ch3_addr`/`ch3_count` flat fields replaced with `DmaChannel` array
+- `KR580VV55A` fully rewritten; `read()`/`write()` split into `cpu_read()`/`cpu_write()` and `peripheral_read_{a,b,c}()`/`peripheral_write_{a,b,c}()`; BSR now correctly updates `INTE_A_IN`, `INTE_A_OUT`, and `INTE_B` alongside `output_latch_c`
+- `tape_out` read via `sys_vv55.peripheral_read_c() & 0x01` directly; `is_tape_out_active()` and `TAPE_OUT_BIT_MASK` removed from `KR580VV55A`
+- `Bus` adapted to the new `KR580VV55A` cpu/peripheral read-write split
+- `Kr580Vt57` and `serde_big_array` imports dropped from `KR580VG75`; `serde_big_array` import added to `bus.rs` for `font_banks`
+- Test snapshots regenerated following `KR580VG75` and `KR580VT57` refactor
+
+### Fixed
+
+- Data port read outside `ReadLpen` context now returns `OPEN_BUS_VALUE` (`0xFF`) instead of stale register state; spurious `Reset` and `LoadCursor` read-back cases removed
+- Status port output masked with `STATUS_VALID_BITS_MASK` consistently across all read paths
+- FIFO read position on overflow: `display_fifo_pos` now tracks `fill_fifo_pos` across the double-buffer swap, so `render_current_row()` starts reading from the correct offset
+- Cursor underline: `set_lten(true)` called directly instead of passing computed `blink_state`, matching the block-cursor blink guard above it
+- Spaced row blanking added to `render_current_row()`; DMA request skipped for spaced rows in `begin_row()`
+
 ## 0.2.5
 
 ### Added

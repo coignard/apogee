@@ -117,6 +117,7 @@ const UNDERLINE_MSB_THRESHOLD: u8 = 7;
 pub struct CharAttrBehavior {
     pub vsp_above: bool,
     pub vsp_below: bool,
+    pub vsp_at_underline: bool,
     pub lten_at_underline: bool,
 }
 
@@ -124,81 +125,97 @@ const CHAR_ATTR_DEFS: [CharAttrBehavior; 16] = [
     CharAttrBehavior {
         vsp_above: true,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: true,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: true,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: true,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: true,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: true,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: true,
+        vsp_at_underline: false,
         lten_at_underline: true,
     },
     CharAttrBehavior {
         vsp_above: true,
         vsp_below: true,
+        vsp_at_underline: false,
         lten_at_underline: true,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: true,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: true,
         vsp_below: true,
+        vsp_at_underline: true,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
     CharAttrBehavior {
         vsp_above: false,
         vsp_below: false,
+        vsp_at_underline: false,
         lten_at_underline: false,
     },
 ];
@@ -880,7 +897,7 @@ impl Kr580Vg75 {
         } else {
             0
         };
-        let is_spaced_row_blank = self.spaced_rows && (self.crt_scan_row % 2 != 0);
+        let is_spaced_row_blank = self.spaced_rows && !self.crt_scan_row.is_multiple_of(2);
 
         for i in 0..(self.n_chars as usize) {
             let mut c = self.display_row_buffer.get(i).copied().unwrap_or(0);
@@ -981,7 +998,7 @@ impl Kr580Vg75 {
                         sym.set_vsp(j, def.vsp_below || blink_active);
                         sym.set_lten(j, false);
                     } else {
-                        sym.set_vsp(j, blink_active);
+                        sym.set_vsp(j, def.vsp_at_underline || blink_active);
                         sym.set_lten(j, def.lten_at_underline && !blink_active);
                     }
                 }
@@ -1020,12 +1037,11 @@ impl Kr580Vg75 {
             let cx = self.cursor_x as usize;
             if cx < self.n_chars as usize && (self.crt_scan_row as usize) < MAX_ROWS {
                 if self.cursor_under {
-                    if (self.und_line as usize) < MAX_LINES_PER_ROW {
-                        if !self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0 {
+                    if (self.und_line as usize) < MAX_LINES_PER_ROW
+                        && (!self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0) {
                             self.parsed_frame[self.crt_scan_row as usize][cx]
                                 .set_lten(self.und_line as usize, true);
                         }
-                    }
                 } else {
                     if !self.cursor_blink || (self.frame_count & BLINK_DIV_16_MASK) != 0 {
                         let rvv = self.parsed_frame[self.crt_scan_row as usize][cx].rvv();
