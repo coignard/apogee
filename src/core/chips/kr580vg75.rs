@@ -79,7 +79,7 @@ const CHAR_ATTRIBUTE_EXCLUSION: u8 = 0x30;
 const CHAR_ATTR_INDEX_MASK: u8 = 0x3C;
 const CHAR_ATTR_INDEX_SHIFT: u8 = 2;
 
-const SPECIAL_CODE_MASK: u8 = 0xF0;
+const SPECIAL_CODE_MASK: u8 = 0xF0; // NB: VG75 decoder ignores bits 2 and 3
 const SPECIAL_CODE_VAL: u8 = 0xF0;
 const SPECIAL_CODE_EOF_BIT: u8 = 0x02;
 const SPECIAL_CODE_STOP_DMA_BIT: u8 = 0x01;
