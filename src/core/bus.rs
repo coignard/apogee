@@ -24,8 +24,8 @@ use super::chips::kr580vg75::Kr580Vg75;
 use super::chips::kr580vi53::Kr580Vi53;
 use super::chips::kr580vt57::Kr580Vt57;
 use super::chips::kr580vv55a::Kr580Vv55a;
-use super::peripherals::keyboard::Keyboard;
 use super::peripherals::UserPeripheral;
+use super::peripherals::keyboard::Keyboard;
 
 pub mod memory_map {
     pub const RAM_START: u16 = 0x0000;
