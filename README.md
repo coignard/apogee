@@ -99,3 +99,8 @@ The [Apogee SDK](https://github.com/coignard/apogee-sdk) source code is © 2026 
 The [flat assembler g](https://github.com/coignard/fasmg) source code is © 2015-2025 Tomasz Grysztar and licensed under the [BSD 3-Clause License](https://github.com/coignard/fasmg/blob/master/core/license.txt).
 
 The `.rka` files in `tests/assets/` are Apogee BK-01 programs written by and © Kakos Nonos, included with his kind permission. Some programs may contain third-party assets whose rights belong to their respective owners. `proverka.rka` is included for testing purposes; its authorship and copyright status are unknown. If you are the copyright holder and object to its inclusion, please [open an issue](https://github.com/coignard/apogee/issues).
+
+<picture>
+  <source srcset="https://github.com/coignard/apogee/blob/main/assets/stamp.svg?raw=true">
+  <img src="assets/stamp.svg" alt="Apogee BK-01" height="128">
+</picture>
