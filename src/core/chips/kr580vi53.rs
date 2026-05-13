@@ -199,6 +199,7 @@ struct TimerChannel {
     state: ChannelState,
     rw_phase: RwPhase,
     latch: LatchState,
+    lsb_buffer: u8,
     reload_value: u16,
     working_counter: u32,
     out_pin: bool,
@@ -216,6 +217,7 @@ impl Default for TimerChannel {
             state: ChannelState::Unprogrammed,
             rw_phase: RwPhase::default(),
             latch: LatchState::None,
+            lsb_buffer: 0,
             reload_value: 0,
             working_counter: 0,
             out_pin: true,
@@ -477,20 +479,21 @@ impl Kr580Vi53 {
                     ch.reload_value = (ch.reload_value & BYTE_MASK) | (val_u16 << MSB_SHIFT);
                     ch.trigger_load();
                 }
-                RwMode::LsbThenMsb => {
-                    if ch.rw_phase == RwPhase::Lsb {
-                        ch.reload_value = (ch.reload_value & !BYTE_MASK) | val_u16;
+                RwMode::LsbThenMsb => match ch.rw_phase {
+                    RwPhase::Lsb => {
+                        ch.lsb_buffer = val;
                         ch.rw_phase = RwPhase::Msb;
 
                         if ch.mode == TimerMode::InterruptOnTerminalCount {
                             ch.state = ChannelState::WaitLoad;
                         }
-                    } else {
-                        ch.reload_value = (ch.reload_value & BYTE_MASK) | (val_u16 << MSB_SHIFT);
+                    }
+                    RwPhase::Msb => {
+                        ch.reload_value = u16::from_le_bytes([ch.lsb_buffer, val]);
                         ch.rw_phase = RwPhase::Lsb;
                         ch.trigger_load();
                     }
-                }
+                },
             }
         }
     }
