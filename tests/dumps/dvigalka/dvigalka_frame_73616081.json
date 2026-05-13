@@ -78,8 +78,7 @@
         false
       ],
       "hlda": false,
-      "last_serviced_channel": 2,
-      "halt_cycles": 0
+      "last_serviced_channel": 2
     },
     "vg75": {
       "cmd": "None",
