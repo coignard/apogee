@@ -9,7 +9,8 @@ Apogee BK-01 emulator with MIDI support via PPI
 
 [![CI](https://github.com/coignard/apogee/workflows/CI/badge.svg)](https://github.com/coignard/apogee/actions)
 [![CodeQL](https://github.com/coignard/apogee/workflows/CodeQL/badge.svg)](https://github.com/coignard/apogee/security/code-scanning)
-[![License: GPL-3.0](https://img.shields.io/github/license/coignard/apogee?color=blue)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/apogee-rs.svg)](https://crates.io/crates/apogee-rs)
+[![License: GPL-3.0-or-later](https://img.shields.io/crates/l/apogee-rs.svg)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/coignard)
 
 <picture>
@@ -25,6 +26,12 @@ To download the source code, build the Apogee binary, and install it in `$HOME/.
 
 ```bash
 cargo install --locked --git https://github.com/coignard/apogee
+```
+
+You can also install the latest release directly from [crates.io](https://crates.io/crates/apogee-rs):
+
+```bash
+cargo install apogee-rs
 ```
 
 Or install via Homebrew:
@@ -48,14 +55,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-apogee-rs = { git = "https://github.com/coignard/apogee" }
-```
-
-Or to pin a specific version:
-
-```toml
-[dependencies]
-apogee-rs = { git = "https://github.com/coignard/apogee", tag = "0.3.0" }
+apogee-rs = "0.3.1"
 ```
 
 ## Test
