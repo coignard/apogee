@@ -201,7 +201,11 @@ fn main() -> Result<()> {
 
         (Some(data), sha256, name)
     } else {
-        (None, String::from(MONITOR_ROM_HASH), String::from("monitor"))
+        (
+            None,
+            String::from(MONITOR_ROM_HASH),
+            String::from("monitor"),
+        )
     };
 
     let rom_payload = if let Some(rom_path) = &rom_path {
