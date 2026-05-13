@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.1
+
+### Added
+
+- `FontBanks` struct on `Bus` grouping `rows: [bool; 64]` and `previous_row: usize`; derives `Serialize` / `Deserialize` with `BigArray` support, replacing the two bare fields
+- `lsb_buffer: u8` field on `TimerChannel` staging the first byte of a two-byte counter write; `reload_value` assembled atomically in `trigger_load()` only after the MSB arrives, matching the physical data bus buffer described in the i8253 datasheet
+
+### Changed
+
+- `Bus::font_banks` field type changed from two bare fields to `FontBanks`; `Machine::font_banks()` updated to return `&self.bus.font_banks.rows`
+- `SPECIAL_CODE_MASK` widened from `0xFC` to `0xF0`: the KR580VG75 decoder circuit checks only the upper nibble to classify a byte as a special code and reads control flags directly from bits 0–1; bits 2–3 are don't-care on real chip despite the datasheet reserving them, so `0xFF` is now correctly recognised as End of Screen + Stop DMA
+
+### Fixed
+
+- KR580VG75: bytes with bits 2–3 set (e.g. `0xFF`) now accepted as valid special codes, matching the behaviour of the physical decoder exploited by the majority of Apogee BK-01 software that uses `0xFF` as a universal end-of-screen sentinel
+- KR580VI53: two-byte counter writes no longer corrupt the running period via a spurious intermediate reload; square-wave channels now complete the current half-period before adopting the new reload constant, eliminating the phase inversion and duty-cycle distortion that caused audible pitch drift on every note change
+- KR580VI53 Mode 0: channel now transitions to `WaitLoad` on LSB receipt, halting the counter until the MSB arrives per datasheet Counter Loading section
+
 ## 0.3.0
 
 Version 0.3.0 is a complete rewrite of all core chip emulations. The timing model is now different from emu80-based emulators and from all prior versions of this project.
