@@ -31,11 +31,11 @@ use apogee_rs::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::Machine;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
-const SYSTEM_ROM: &[u8] = include_bytes!("../dist/roms/apogee.rom");
-const FONT_ROM: &[u8] = include_bytes!("../dist/fonts/sga.bin");
+const SYSTEM_ROM: &[u8] = include_bytes!("../firmware/monitor.rom");
+const FONT_ROM: &[u8] = include_bytes!("../firmware/chargen.rom");
 
-const SYSTEM_ROM_HASH: &str = include_str!("../dist/roms/apogee.rom.sha256").trim_ascii();
-const FONT_ROM_HASH: &str = include_str!("../dist/fonts/sga.bin.sha256").trim_ascii();
+const SYSTEM_ROM_HASH: &str = include_str!("../firmware/monitor.rom.sha256").trim_ascii();
+const FONT_ROM_HASH: &str = include_str!("../firmware/chargen.rom.sha256").trim_ascii();
 
 fn check_integrity() -> Result<()> {
     let verify = |name: &str, data: &[u8], expected: &str| -> Result<()> {
@@ -49,8 +49,8 @@ fn check_integrity() -> Result<()> {
         Ok(())
     };
 
-    verify("apogee.rom", SYSTEM_ROM, SYSTEM_ROM_HASH)?;
-    verify("sga.bin", FONT_ROM, FONT_ROM_HASH)?;
+    verify("monitor.rom", SYSTEM_ROM, SYSTEM_ROM_HASH)?;
+    verify("chargen.rom", FONT_ROM, FONT_ROM_HASH)?;
 
     Ok(())
 }

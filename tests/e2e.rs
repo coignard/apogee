@@ -24,8 +24,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use test_generator::test_resources;
 
-const SYSTEM_ROM: &[u8] = include_bytes!("../dist/roms/apogee.rom");
-const FONT_ROM: &[u8] = include_bytes!("../dist/fonts/sga.bin");
+const SYSTEM_ROM: &[u8] = include_bytes!("../firmware/monitor.rom");
+const FONT_ROM: &[u8] = include_bytes!("../firmware/chargen.rom");
 
 #[test_resources("tests/replays/*.json")]
 fn replay_matches_snapshot(replay_path_str: &str) {
