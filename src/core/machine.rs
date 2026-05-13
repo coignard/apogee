@@ -127,7 +127,7 @@ impl Machine {
 
     #[inline]
     pub fn font_banks(&self) -> &[bool; 64] {
-        &self.bus.font_banks
+        &self.bus.font_banks.rows
     }
 
     #[inline]
@@ -311,16 +311,16 @@ impl Machine {
             let (inte, _) = self.cpu.immutable_registers().get_interrupt_mode();
             let cur_row = self.bus.vg75.current_row();
 
-            if self.bus.previous_row > cur_row {
-                self.bus.previous_row = 0;
+            if self.bus.font_banks.previous_row > cur_row {
+                self.bus.font_banks.previous_row = 0;
             }
 
-            for r in self.bus.previous_row..=cur_row {
-                if r < self.bus.font_banks.len() {
-                    self.bus.font_banks[r] = inte;
+            for r in self.bus.font_banks.previous_row..=cur_row {
+                if r < self.bus.font_banks.rows.len() {
+                    self.bus.font_banks.rows[r] = inte;
                 }
             }
-            self.bus.previous_row = cur_row;
+            self.bus.font_banks.previous_row = cur_row;
         }
 
         vblank_occurred
