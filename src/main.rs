@@ -31,11 +31,11 @@ use apogee_rs::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::Machine;
 use apogee_rs::core::video::{ColorMode, VideoRenderer};
 
-const SYSTEM_ROM: &[u8] = include_bytes!("../firmware/monitor.rom");
-const FONT_ROM: &[u8] = include_bytes!("../firmware/chargen.rom");
+const MONITOR_ROM: &[u8] = include_bytes!("../firmware/monitor.rom");
+const CHARGEN_ROM: &[u8] = include_bytes!("../firmware/chargen.rom");
 
-const SYSTEM_ROM_HASH: &str = include_str!("../firmware/monitor.rom.sha256").trim_ascii();
-const FONT_ROM_HASH: &str = include_str!("../firmware/chargen.rom.sha256").trim_ascii();
+const MONITOR_ROM_HASH: &str = include_str!("../firmware/monitor.rom.sha256").trim_ascii();
+const CHARGEN_ROM_HASH: &str = include_str!("../firmware/chargen.rom.sha256").trim_ascii();
 
 fn check_integrity() -> Result<()> {
     let verify = |name: &str, data: &[u8], expected: &str| -> Result<()> {
@@ -49,8 +49,8 @@ fn check_integrity() -> Result<()> {
         Ok(())
     };
 
-    verify("monitor.rom", SYSTEM_ROM, SYSTEM_ROM_HASH)?;
-    verify("chargen.rom", FONT_ROM, FONT_ROM_HASH)?;
+    verify("monitor.rom", MONITOR_ROM, MONITOR_ROM_HASH)?;
+    verify("chargen.rom", CHARGEN_ROM, CHARGEN_ROM_HASH)?;
 
     Ok(())
 }
@@ -201,7 +201,7 @@ fn main() -> Result<()> {
 
         (Some(data), sha256, name)
     } else {
-        (None, String::from(SYSTEM_ROM_HASH), String::from("monitor"))
+        (None, String::from(MONITOR_ROM_HASH), String::from("monitor"))
     };
 
     let rom_payload = if let Some(rom_path) = &rom_path {
@@ -247,7 +247,7 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
 
     let audio = AudioSystem::new().context("Failed to initialize audio system")?;
-    let video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, is_crt);
+    let video = VideoRenderer::new(CHARGEN_ROM.to_vec(), color_mode, is_crt);
 
     let sample_rate = player
         .as_ref()
@@ -298,7 +298,7 @@ fn main() -> Result<()> {
     };
 
     let machine_config = MachineConfig {
-        system_rom: std::sync::Arc::from(SYSTEM_ROM),
+        monitor_rom: std::sync::Arc::from(MONITOR_ROM),
         sample_rate,
         rka: rka_payload,
         romdisk: rom_payload,

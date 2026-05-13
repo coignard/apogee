@@ -71,7 +71,7 @@ pub struct Bus {
     #[serde(serialize_with = "serialize_ram_hash", rename = "ram_hash")]
     pub(crate) ram: Box<[u8; 0x10000]>,
     #[serde(skip)]
-    pub(crate) system_rom: Vec<u8>,
+    pub(crate) monitor_rom: Vec<u8>,
 
     pub(crate) vi53: Kr580Vi53,
     pub(crate) vt57: Kr580Vt57,
@@ -90,10 +90,10 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(system_rom: Vec<u8>) -> Self {
+    pub fn new(monitor_rom: Vec<u8>) -> Self {
         Self {
             ram: vec![0; 0x10000].into_boxed_slice().try_into().unwrap(),
-            system_rom,
+            monitor_rom,
             vi53: Kr580Vi53::new(),
             vt57: Kr580Vt57::new(),
             vg75: Kr580Vg75::new(),
@@ -127,8 +127,8 @@ impl Machine for Bus {
             memory_map::CRTC_BASE..=memory_map::CRTC_END => self.vg75.read(addr),
             memory_map::DMA_ROM_BASE..=memory_map::DMA_ROM_END => {
                 let idx = (addr - memory_map::DMA_ROM_BASE) as usize;
-                if !self.system_rom.is_empty() {
-                    self.system_rom[idx % self.system_rom.len()]
+                if !self.monitor_rom.is_empty() {
+                    self.monitor_rom[idx % self.monitor_rom.len()]
                 } else {
                     0xFF
                 }

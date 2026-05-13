@@ -62,7 +62,7 @@ const WINDOW_SCALE: f64 = 2.0;
 
 #[derive(Clone)]
 pub struct MachineConfig {
-    pub system_rom: Arc<[u8]>,
+    pub monitor_rom: Arc<[u8]>,
     pub sample_rate: u32,
     pub rka: Option<(Arc<[u8]>, bool, bool)>,
     pub romdisk: Option<Arc<[u8]>>,
@@ -72,7 +72,7 @@ pub struct MachineConfig {
 
 impl MachineConfig {
     pub fn new_machine(&self) -> Machine {
-        let mut machine = Machine::new(self.system_rom.to_vec(), self.sample_rate);
+        let mut machine = Machine::new(self.monitor_rom.to_vec(), self.sample_rate);
 
         if let Some((rka, autorun, force)) = &self.rka {
             machine

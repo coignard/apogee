@@ -107,13 +107,13 @@ pub struct Machine {
 }
 
 impl Machine {
-    pub fn new(system_rom: Vec<u8>, sample_rate: u32) -> Self {
+    pub fn new(monitor_rom: Vec<u8>, sample_rate: u32) -> Self {
         let mut cpu = Cpu::new_8080();
         cpu.registers().set_pc(RESET_VECTOR);
 
         Self {
             cpu,
-            bus: Bus::new(system_rom),
+            bus: Bus::new(monitor_rom),
             audio_mixer: AudioMixer::new(sample_rate, MASTER_CLOCK_HZ, CPU_DIVIDER),
             cclk_acc: 0,
             total_cycles: 0,

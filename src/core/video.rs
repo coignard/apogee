@@ -43,7 +43,7 @@ const GRAYSCALE_PALETTE: [[u8; 4]; 8] = [
 ];
 
 pub struct VideoRenderer {
-    pub font_rom: Vec<u8>,
+    pub chargen_rom: Vec<u8>,
     pub color_mode: ColorMode,
     is_crt_blend: bool,
     width: u32,
@@ -53,12 +53,12 @@ pub struct VideoRenderer {
 }
 
 impl VideoRenderer {
-    pub fn new(font_rom: Vec<u8>, color_mode: ColorMode, is_crt_blend: bool) -> Self {
+    pub fn new(chargen_rom: Vec<u8>, color_mode: ColorMode, is_crt_blend: bool) -> Self {
         let width = (DEFAULT_CHARS_PER_ROW * CHAR_WIDTH) as u32;
         let height = (DEFAULT_ROWS_PER_SCREEN * DEFAULT_LINES_PER_ROW) as u32;
 
         Self {
-            font_rom,
+            chargen_rom,
             color_mode,
             is_crt_blend,
             width,
@@ -187,7 +187,7 @@ impl VideoRenderer {
 
                     let char_idx = ((sym.chr as usize) + chargen) & 0xFF;
                     let row_data = if !vsp {
-                        self.font_rom
+                        self.chargen_rom
                             .get(char_idx * 8 + (lc & 7))
                             .copied()
                             .unwrap_or(0xFF)
