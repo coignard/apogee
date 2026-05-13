@@ -16,7 +16,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use iz80::Machine;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use sha2::{Digest, Sha256};
 
@@ -24,8 +24,8 @@ use super::chips::kr580vg75::Kr580Vg75;
 use super::chips::kr580vi53::Kr580Vi53;
 use super::chips::kr580vt57::Kr580Vt57;
 use super::chips::kr580vv55a::Kr580Vv55a;
-use super::peripherals::UserPeripheral;
 use super::peripherals::keyboard::Keyboard;
+use super::peripherals::UserPeripheral;
 
 pub mod memory_map {
     pub const RAM_START: u16 = 0x0000;
@@ -50,6 +50,22 @@ fn serialize_ram_hash<S: serde::Serializer>(
     serializer.serialize_str(&hex::encode(hash))
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct FontBanks {
+    #[serde(with = "BigArray")]
+    pub rows: [bool; 64],
+    pub previous_row: usize,
+}
+
+impl Default for FontBanks {
+    fn default() -> Self {
+        Self {
+            rows: [false; 64],
+            previous_row: 0,
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct Bus {
     #[serde(serialize_with = "serialize_ram_hash", rename = "ram_hash")]
@@ -67,9 +83,7 @@ pub struct Bus {
     pub(crate) keyboard: Keyboard,
     pub(crate) user_slot: UserPeripheral,
 
-    #[serde(with = "BigArray")]
-    pub(crate) font_banks: [bool; 64],
-    pub(crate) previous_row: usize,
+    pub(crate) font_banks: FontBanks,
 
     #[serde(skip)]
     pub(crate) current_cycle: u64,
@@ -87,8 +101,7 @@ impl Bus {
             user_vv55: Kr580Vv55a::new(),
             keyboard: Keyboard::new(),
             user_slot: UserPeripheral::None,
-            font_banks: [false; 64],
-            previous_row: 0,
+            font_banks: FontBanks::default(),
             current_cycle: 0,
         }
     }
