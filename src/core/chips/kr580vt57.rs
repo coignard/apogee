@@ -113,7 +113,6 @@ pub struct Kr580Vt57 {
     drq: [bool; NUM_CHANNELS],
     hlda: bool,
     last_serviced_channel: usize,
-    halt_cycles: u32,
 }
 
 impl Kr580Vt57 {
@@ -126,7 +125,6 @@ impl Kr580Vt57 {
             drq: [false; NUM_CHANNELS],
             hlda: false,
             last_serviced_channel: NUM_CHANNELS - 1,
-            halt_cycles: 0,
         }
     }
 
@@ -137,7 +135,6 @@ impl Kr580Vt57 {
         self.drq = [false; NUM_CHANNELS];
         self.hlda = false;
         self.last_serviced_channel = NUM_CHANNELS - 1;
-        self.halt_cycles = 0;
     }
 
     #[inline]
@@ -172,35 +169,6 @@ impl Kr580Vt57 {
     #[inline]
     pub fn set_hlda(&mut self, state: bool) {
         self.hlda = state;
-    }
-
-    #[inline]
-    pub fn halt_cycles(&self) -> u32 {
-        self.halt_cycles
-    }
-
-    #[inline]
-    pub fn add_halt_cycles(&mut self, cycles: u32) {
-        self.halt_cycles += cycles;
-    }
-
-    #[inline]
-    pub fn sub_halt_cycles(&mut self, cycles: u32) {
-        self.halt_cycles = self.halt_cycles.saturating_sub(cycles);
-    }
-
-    #[inline]
-    pub fn ch2_addr(&self) -> u16 {
-        if (self.status & STATUS_UPDATE_FLAG) != 0 {
-            self.channels[CHANNEL_3].address
-        } else {
-            self.channels[CHANNEL_2].address
-        }
-    }
-
-    #[inline]
-    pub fn step_ch2(&mut self) {
-        let _ = self.step_channel(CHANNEL_2);
     }
 
     fn step_channel(&mut self, ch: usize) -> (u16, bool) {
