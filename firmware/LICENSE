@@ -1,0 +1,11 @@
+The binary files in this directory are firmware dumps of the Apogee BK-01.
+
+monitor.rom is a dump of the Monitor, the base operating system of the
+Apogee BK-01, and is copyright (c) its respective rights holders.
+chargen.rom is a dump of the character generator ROM and is copyright (c)
+its respective rights holders.
+
+romdisk.rom is a dump of an external ROM disk image and is copyright (c)
+the rights holders of the ROM disk software and the respective rights
+holders of the individual programs it contains, including any third-party
+assets embedded therein.
