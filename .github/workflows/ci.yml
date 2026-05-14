@@ -24,6 +24,7 @@ jobs:
       run: |
         echo "4b5c8507ff16f7712e28e0f635fd783f2a8ba7c912f82d86223a90f3656a2395  firmware/monitor.rom" > SHA256SUMS
         echo "a71d0166f73952675db15088545276cf39805cab34f9c94f28de50931f8ed99f  firmware/chargen.rom" >> SHA256SUMS
+        echo "a440426a0184104be149a10c85fd79b845f07526fe646e8896513e4f2116679b  firmware/romdisk.rom" >> SHA256SUMS
         echo "262b653bb227ae5544e35e3fa0707dc43f06ebd36f167658683fd65ec239c788  tests/assets/ducks.rka" >> SHA256SUMS
         echo "737b8a71eea220794180748033dca32e01e06e1ce597dddd51f96788a19e4d48  tests/assets/dvigalka.rka" >> SHA256SUMS
         echo "7bed714c5f1975aadf7f47de5b82a6b3a972a6216fd66784187476a86b6b0814  tests/assets/kindzadza.rka" >> SHA256SUMS
