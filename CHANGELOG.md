@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.2
+
+### Added
+
+- `KeyboardTranslator` struct replacing the stateless `map_keycode()` function; tracks active physical keys and synthesises `Shift`, `Ctrl`, and `Lang` modifier events that bracket each base key press, correctly separating host modifier state from the emulated modifier state
+- `KeyboardLayout` enum with three variants selectable via `--keyboard-layout`: - `Smart` (default): maps OS logical characters directly to emulator keys, deriving `Shift` and `Lang` from the character value; supports transparent Latin and Cyrillic input regardless of the host keyboard layout setting
+- `Qwerty`: maps physical QWERTY scan codes to emulator keys; useful when the host layout is already set to match the target machine
+- `Jcuken`: maps physical QWERTY scan codes to JCUKEN positions for a fixed hardware-style Russian layout
+- `keyboard_layout` field added to `AppConfig`
+
+### Changed
+
+- `Key::End` renamed to `Key::Clear`; `Key::PageDown` renamed to `Key::LineFeed`; `Key::Equal` renamed to `Key::Colon`; `Key::Backquote` renamed to `Key::At`; `Key::Quote` renamed to `Key::Caret`; `Key::Alt` renamed to `Key::Lang`, all names now match the physical key labels on the Apogee BK-01 keyboard
+- `--crt` flag renamed to `--gigascreen`; `is_crt` / `is_crt_blend` fields renamed to `gigascreen` in `VideoRenderer`, `ReplayMetadata`, and `AppConfig`; the feature blends consecutive frames to simulate the gigascreen technique
+- MIDI strobe detection changed from rising-edge on bit 0 (`STROBE_BIT`) to active-low OBF on bit 7 (`OBF_BIT`), matching the `KR580VV55A` handshake signal; `last_port_c` field removed from `MidiInterface`; `MidiInterface::update()` now returns `bool`; `Bus` pulses port C `!0x40` then `0xFF` when `update()` returns `true` to complete the acknowledge cycle
+- `UserPeripheral::update()` now returns `bool` propagated from the active peripheral; `RomDisk` returns `false`
+- Repeat key events are now filtered before reaching `KeyboardTranslator`, preventing duplicate emulator key events on held keys
+
+### Fixed
+
+- KR580VI80 (iz80): XCHG instruction cycle count was incorrect upstream; corrected in iz80 0.5.1, test snapshots regenerated accordingly
+
 ## 0.3.1
 
 ### Added
@@ -10,11 +32,11 @@
 ### Changed
 
 - `Bus::font_banks` field type changed from two bare fields to `FontBanks`; `Machine::font_banks()` updated to return `&self.bus.font_banks.rows`
-- `SPECIAL_CODE_MASK` widened from `0xFC` to `0xF0`: the KR580VG75 decoder circuit checks only the upper nibble to classify a byte as a special code and reads control flags directly from bits 0–1; bits 2–3 are don't-care on real chip despite the datasheet reserving them, so `0xFF` is now correctly recognised as End of Screen + Stop DMA
+- `SPECIAL_CODE_MASK` widened from `0xFC` to `0xF0`: the KR580VG75 decoder circuit checks only the upper nibble to classify a byte as a special code and reads control flags directly from bits 0-1; bits 2-3 are don't-care on real chip despite the datasheet reserving them, so `0xFF` is now correctly recognised as End of Screen + Stop DMA
 
 ### Fixed
 
-- KR580VG75: bytes with bits 2–3 set (e.g. `0xFF`) now accepted as valid special codes, matching the behaviour of the physical decoder exploited by the majority of Apogee BK-01 software that uses `0xFF` as a universal end-of-screen sentinel
+- KR580VG75: bytes with bits 2-3 set (e.g. `0xFF`) now accepted as valid special codes, matching the behaviour of the physical decoder exploited by the majority of Apogee BK-01 software that uses `0xFF` as a universal end-of-screen sentinel
 - KR580VI53: two-byte counter writes no longer corrupt the running period via a spurious intermediate reload; square-wave channels now complete the current half-period before adopting the new reload constant, eliminating the phase inversion and duty-cycle distortion that caused audible pitch drift on every note change
 - KR580VI53 Mode 0: channel now transitions to `WaitLoad` on LSB receipt, halting the counter until the MSB arrives per datasheet Counter Loading section
 
