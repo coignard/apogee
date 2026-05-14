@@ -5,11 +5,11 @@
     "autorun": false,
     "sample_rate": 48000,
     "color_mode": "Color",
-    "is_crt": false
+    "gigascreen": false
   },
   "events": [
     {
-      "frame": 1029787,
+      "frame": 959847,
       "action": {
         "KeyDown": {
           "key": "Shift"
@@ -17,7 +17,7 @@
       }
     },
     {
-      "frame": 1136431,
+      "frame": 959847,
       "action": {
         "KeyDown": {
           "key": "A"
@@ -25,7 +25,7 @@
       }
     },
     {
-      "frame": 1243064,
+      "frame": 1066478,
       "action": {
         "KeyUp": {
           "key": "A"
@@ -33,7 +33,7 @@
       }
     },
     {
-      "frame": 1278624,
+      "frame": 1066478,
       "action": {
         "KeyUp": {
           "key": "Shift"
@@ -41,7 +41,7 @@
       }
     },
     {
-      "frame": 1385255,
+      "frame": 1102036,
       "action": {
         "KeyDown": {
           "key": "Minus"
@@ -49,15 +49,7 @@
       }
     },
     {
-      "frame": 1491893,
-      "action": {
-        "KeyDown": {
-          "key": "Shift"
-        }
-      }
-    },
-    {
-      "frame": 1491893,
+      "frame": 1244217,
       "action": {
         "KeyUp": {
           "key": "Minus"
@@ -65,47 +57,7 @@
       }
     },
     {
-      "frame": 1598544,
-      "action": {
-        "KeyDown": {
-          "key": "A"
-        }
-      }
-    },
-    {
-      "frame": 1705171,
-      "action": {
-        "KeyUp": {
-          "key": "A"
-        }
-      }
-    },
-    {
-      "frame": 1740718,
-      "action": {
-        "KeyDown": {
-          "key": "Minus"
-        }
-      }
-    },
-    {
-      "frame": 1740718,
-      "action": {
-        "KeyUp": {
-          "key": "Shift"
-        }
-      }
-    },
-    {
-      "frame": 1882904,
-      "action": {
-        "KeyUp": {
-          "key": "Minus"
-        }
-      }
-    },
-    {
-      "frame": 1918456,
+      "frame": 1244217,
       "action": {
         "KeyDown": {
           "key": "Shift"
@@ -113,7 +65,7 @@
       }
     },
     {
-      "frame": 1953998,
+      "frame": 1244217,
       "action": {
         "KeyDown": {
           "key": "A"
@@ -121,7 +73,7 @@
       }
     },
     {
-      "frame": 2096192,
+      "frame": 1421956,
       "action": {
         "KeyUp": {
           "key": "A"
@@ -129,7 +81,71 @@
       }
     },
     {
-      "frame": 2309468,
+      "frame": 1421956,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 1421956,
+      "action": {
+        "KeyDown": {
+          "key": "Minus"
+        }
+      }
+    },
+    {
+      "frame": 1528585,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 1528585,
+      "action": {
+        "KeyDown": {
+          "key": "A"
+        }
+      }
+    },
+    {
+      "frame": 1564134,
+      "action": {
+        "KeyUp": {
+          "key": "Minus"
+        }
+      }
+    },
+    {
+      "frame": 1706331,
+      "action": {
+        "KeyUp": {
+          "key": "A"
+        }
+      }
+    },
+    {
+      "frame": 1706331,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 1919605,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 2132880,
       "action": {
         "KeyDown": {
           "key": "Num1"
@@ -137,7 +153,7 @@
       }
     },
     {
-      "frame": 2487209,
+      "frame": 2275071,
       "action": {
         "KeyUp": {
           "key": "Num1"
@@ -145,7 +161,7 @@
       }
     },
     {
-      "frame": 2593852,
+      "frame": 2381709,
       "action": {
         "KeyDown": {
           "key": "Num1"
@@ -153,7 +169,7 @@
       }
     },
     {
-      "frame": 2736025,
+      "frame": 2559439,
       "action": {
         "KeyUp": {
           "key": "Num1"
@@ -161,7 +177,7 @@
       }
     },
     {
-      "frame": 2807118,
+      "frame": 2666082,
       "action": {
         "KeyDown": {
           "key": "Num1"
@@ -169,7 +185,7 @@
       }
     },
     {
-      "frame": 3020402,
+      "frame": 2879358,
       "action": {
         "KeyUp": {
           "key": "Num1"
@@ -177,7 +193,7 @@
       }
     },
     {
-      "frame": 3055953,
+      "frame": 2950452,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -185,7 +201,7 @@
       }
     },
     {
-      "frame": 3198131,
+      "frame": 3128190,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -193,7 +209,23 @@
       }
     },
     {
-      "frame": 3269230,
+      "frame": 3163731,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 3448105,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 3448105,
       "action": {
         "KeyDown": {
           "key": "P"
@@ -201,15 +233,7 @@
       }
     },
     {
-      "frame": 3411422,
-      "action": {
-        "KeyDown": {
-          "key": "O"
-        }
-      }
-    },
-    {
-      "frame": 3482508,
+      "frame": 3590300,
       "action": {
         "KeyUp": {
           "key": "P"
@@ -217,7 +241,55 @@
       }
     },
     {
-      "frame": 3518057,
+      "frame": 3590300,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 3696938,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 3696938,
+      "action": {
+        "KeyDown": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 3803578,
+      "action": {
+        "KeyUp": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 3803578,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 3839132,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 3839132,
       "action": {
         "KeyDown": {
           "key": "M"
@@ -225,15 +297,7 @@
       }
     },
     {
-      "frame": 3553602,
-      "action": {
-        "KeyUp": {
-          "key": "O"
-        }
-      }
-    },
-    {
-      "frame": 3660246,
+      "frame": 3981306,
       "action": {
         "KeyDown": {
           "key": "O"
@@ -241,7 +305,7 @@
       }
     },
     {
-      "frame": 3731333,
+      "frame": 4016857,
       "action": {
         "KeyUp": {
           "key": "M"
@@ -249,7 +313,7 @@
       }
     },
     {
-      "frame": 3837974,
+      "frame": 4087955,
       "action": {
         "KeyUp": {
           "key": "O"
@@ -257,7 +321,23 @@
       }
     },
     {
-      "frame": 3909064,
+      "frame": 4087955,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 4194596,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 4194596,
       "action": {
         "KeyDown": {
           "key": "G"
@@ -265,7 +345,7 @@
       }
     },
     {
-      "frame": 4015708,
+      "frame": 4301229,
       "action": {
         "KeyDown": {
           "key": "I"
@@ -273,7 +353,7 @@
       }
     },
     {
-      "frame": 4051251,
+      "frame": 4336774,
       "action": {
         "KeyUp": {
           "key": "G"
@@ -281,7 +361,7 @@
       }
     },
     {
-      "frame": 4193438,
+      "frame": 4550053,
       "action": {
         "KeyUp": {
           "key": "I"
@@ -289,7 +369,23 @@
       }
     },
     {
-      "frame": 4264534,
+      "frame": 4550053,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 4585600,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 4585600,
       "action": {
         "KeyDown": {
           "key": "T"
@@ -297,15 +393,7 @@
       }
     },
     {
-      "frame": 4335626,
-      "action": {
-        "KeyDown": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 4442269,
+      "frame": 4727784,
       "action": {
         "KeyUp": {
           "key": "T"
@@ -313,7 +401,31 @@
       }
     },
     {
-      "frame": 4548907,
+      "frame": 4727784,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 4763335,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 4763335,
+      "action": {
+        "KeyDown": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 4941070,
       "action": {
         "KeyUp": {
           "key": "E"
@@ -321,55 +433,7 @@
       }
     },
     {
-      "frame": 4762200,
-      "action": {
-        "KeyDown": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 4904373,
-      "action": {
-        "KeyUp": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 5046559,
-      "action": {
-        "KeyDown": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 5153201,
-      "action": {
-        "KeyUp": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 5259840,
-      "action": {
-        "KeyDown": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 5437574,
-      "action": {
-        "KeyUp": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 5544212,
+      "frame": 4941070,
       "action": {
         "KeyUp": {
           "key": "Shift"
@@ -377,23 +441,7 @@
       }
     },
     {
-      "frame": 5757493,
-      "action": {
-        "KeyDown": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 5899680,
-      "action": {
-        "KeyUp": {
-          "key": "Enter"
-        }
-      }
-    },
-    {
-      "frame": 5970771,
+      "frame": 5225441,
       "action": {
         "KeyDown": {
           "key": "Shift"
@@ -401,7 +449,87 @@
       }
     },
     {
-      "frame": 6184057,
+      "frame": 5367626,
+      "action": {
+        "KeyDown": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 5580904,
+      "action": {
+        "KeyUp": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 5687555,
+      "action": {
+        "KeyDown": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 5829731,
+      "action": {
+        "KeyUp": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 5971928,
+      "action": {
+        "KeyDown": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 6149652,
+      "action": {
+        "KeyUp": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 6220747,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 6505120,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 6611758,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 7180506,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 7180506,
       "action": {
         "KeyDown": {
           "key": "M"
@@ -409,7 +537,15 @@
       }
     },
     {
-      "frame": 6326239,
+      "frame": 7358241,
+      "action": {
+        "KeyDown": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 7358241,
       "action": {
         "KeyUp": {
           "key": "M"
@@ -417,23 +553,7 @@
       }
     },
     {
-      "frame": 6326239,
-      "action": {
-        "KeyDown": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 6503973,
-      "action": {
-        "KeyDown": {
-          "key": "N"
-        }
-      }
-    },
-    {
-      "frame": 6503973,
+      "frame": 7429331,
       "action": {
         "KeyUp": {
           "key": "E"
@@ -441,351 +561,7 @@
       }
     },
     {
-      "frame": 6610616,
-      "action": {
-        "KeyUp": {
-          "key": "N"
-        }
-      }
-    },
-    {
-      "frame": 6788354,
-      "action": {
-        "KeyDown": {
-          "key": "Q"
-        }
-      }
-    },
-    {
-      "frame": 7001624,
-      "action": {
-        "KeyUp": {
-          "key": "Q"
-        }
-      }
-    },
-    {
-      "frame": 7250454,
-      "action": {
-        "KeyDown": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 7499279,
-      "action": {
-        "KeyUp": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 7712566,
-      "action": {
-        "KeyDown": {
-          "key": "Z"
-        }
-      }
-    },
-    {
-      "frame": 7890291,
-      "action": {
-        "KeyUp": {
-          "key": "Z"
-        }
-      }
-    },
-    {
-      "frame": 8068025,
-      "action": {
-        "KeyDown": {
-          "key": "A"
-        }
-      }
-    },
-    {
-      "frame": 8245761,
-      "action": {
-        "KeyUp": {
-          "key": "A"
-        }
-      }
-    },
-    {
-      "frame": 8245761,
-      "action": {
-        "KeyDown": {
-          "key": "P"
-        }
-      }
-    },
-    {
-      "frame": 8423503,
-      "action": {
-        "KeyUp": {
-          "key": "P"
-        }
-      }
-    },
-    {
-      "frame": 8459038,
-      "action": {
-        "KeyDown": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 8636773,
-      "action": {
-        "KeyDown": {
-          "key": "R"
-        }
-      }
-    },
-    {
-      "frame": 8672322,
-      "action": {
-        "KeyUp": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 8778969,
-      "action": {
-        "KeyDown": {
-          "key": "L"
-        }
-      }
-    },
-    {
-      "frame": 8850060,
-      "action": {
-        "KeyUp": {
-          "key": "R"
-        }
-      }
-    },
-    {
-      "frame": 8850060,
-      "action": {
-        "KeyDown": {
-          "key": "I"
-        }
-      }
-    },
-    {
-      "frame": 8921147,
-      "action": {
-        "KeyUp": {
-          "key": "L"
-        }
-      }
-    },
-    {
-      "frame": 9027787,
-      "action": {
-        "KeyUp": {
-          "key": "I"
-        }
-      }
-    },
-    {
-      "frame": 9241065,
-      "action": {
-        "KeyDown": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 9418803,
-      "action": {
-        "KeyUp": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 9489902,
-      "action": {
-        "KeyDown": {
-          "key": "W"
-        }
-      }
-    },
-    {
-      "frame": 9667626,
-      "action": {
-        "KeyUp": {
-          "key": "W"
-        }
-      }
-    },
-    {
-      "frame": 9667626,
-      "action": {
-        "KeyDown": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 9916458,
-      "action": {
-        "KeyUp": {
-          "key": "Space"
-        }
-      }
-    },
-    {
-      "frame": 9916458,
-      "action": {
-        "KeyDown": {
-          "key": "A"
-        }
-      }
-    },
-    {
-      "frame": 10094187,
-      "action": {
-        "KeyUp": {
-          "key": "A"
-        }
-      }
-    },
-    {
-      "frame": 10094187,
-      "action": {
-        "KeyDown": {
-          "key": "P"
-        }
-      }
-    },
-    {
-      "frame": 10236374,
-      "action": {
-        "KeyUp": {
-          "key": "P"
-        }
-      }
-    },
-    {
-      "frame": 10236374,
-      "action": {
-        "KeyDown": {
-          "key": "O"
-        }
-      }
-    },
-    {
-      "frame": 10414116,
-      "action": {
-        "KeyUp": {
-          "key": "O"
-        }
-      }
-    },
-    {
-      "frame": 10485199,
-      "action": {
-        "KeyDown": {
-          "key": "G"
-        }
-      }
-    },
-    {
-      "frame": 10556293,
-      "action": {
-        "KeyDown": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 10627390,
-      "action": {
-        "KeyUp": {
-          "key": "G"
-        }
-      }
-    },
-    {
-      "frame": 10698481,
-      "action": {
-        "KeyUp": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 10769577,
-      "action": {
-        "KeyDown": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 10982858,
-      "action": {
-        "KeyUp": {
-          "key": "E"
-        }
-      }
-    },
-    {
-      "frame": 11267235,
-      "action": {
-        "KeyDown": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 11373870,
-      "action": {
-        "KeyUp": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 11516052,
-      "action": {
-        "KeyDown": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 11622695,
-      "action": {
-        "KeyUp": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 11729332,
-      "action": {
-        "KeyDown": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 11871519,
-      "action": {
-        "KeyUp": {
-          "key": "Num1"
-        }
-      }
-    },
-    {
-      "frame": 12013705,
+      "frame": 7429331,
       "action": {
         "KeyUp": {
           "key": "Shift"
@@ -793,31 +569,159 @@
       }
     },
     {
-      "frame": 12191441,
+      "frame": 7571529,
       "action": {
         "KeyDown": {
-          "key": "Enter"
+          "key": "Shift"
         }
       }
     },
     {
-      "frame": 12369179,
+      "frame": 7571529,
+      "action": {
+        "KeyDown": {
+          "key": "N"
+        }
+      }
+    },
+    {
+      "frame": 7713706,
       "action": {
         "KeyUp": {
-          "key": "Enter"
+          "key": "N"
         }
       }
     },
     {
-      "frame": 14182055,
+      "frame": 7713706,
       "action": {
-        "TakeSnapshot": {
-          "name": "monitor_frame_14182055"
+        "KeyUp": {
+          "key": "Shift"
         }
       }
     },
     {
-      "frame": 16634772,
+      "frame": 7713706,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 7713706,
+      "action": {
+        "KeyDown": {
+          "key": "Q"
+        }
+      }
+    },
+    {
+      "frame": 7926986,
+      "action": {
+        "KeyUp": {
+          "key": "Q"
+        }
+      }
+    },
+    {
+      "frame": 7926986,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 7926986,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 8104724,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 8140265,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 8140265,
+      "action": {
+        "KeyDown": {
+          "key": "Z"
+        }
+      }
+    },
+    {
+      "frame": 8282456,
+      "action": {
+        "KeyUp": {
+          "key": "Z"
+        }
+      }
+    },
+    {
+      "frame": 8282456,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 8318012,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 8318012,
+      "action": {
+        "KeyDown": {
+          "key": "A"
+        }
+      }
+    },
+    {
+      "frame": 8495733,
+      "action": {
+        "KeyUp": {
+          "key": "A"
+        }
+      }
+    },
+    {
+      "frame": 8495733,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 8637925,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 8637925,
       "action": {
         "KeyDown": {
           "key": "P"
@@ -825,7 +729,7 @@
       }
     },
     {
-      "frame": 16741411,
+      "frame": 8744563,
       "action": {
         "KeyUp": {
           "key": "P"
@@ -833,7 +737,463 @@
       }
     },
     {
-      "frame": 16812515,
+      "frame": 8744563,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 8886748,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 8886748,
+      "action": {
+        "KeyDown": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 9064486,
+      "action": {
+        "KeyUp": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 9064486,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 9135573,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 9135573,
+      "action": {
+        "KeyDown": {
+          "key": "R"
+        }
+      }
+    },
+    {
+      "frame": 9277759,
+      "action": {
+        "KeyUp": {
+          "key": "R"
+        }
+      }
+    },
+    {
+      "frame": 9277759,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 9348858,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 9348858,
+      "action": {
+        "KeyDown": {
+          "key": "L"
+        }
+      }
+    },
+    {
+      "frame": 9526587,
+      "action": {
+        "KeyUp": {
+          "key": "L"
+        }
+      }
+    },
+    {
+      "frame": 9526587,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 9562137,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 9562137,
+      "action": {
+        "KeyDown": {
+          "key": "I"
+        }
+      }
+    },
+    {
+      "frame": 9704318,
+      "action": {
+        "KeyUp": {
+          "key": "I"
+        }
+      }
+    },
+    {
+      "frame": 9704318,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 9846515,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 10024238,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 10166424,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 10166424,
+      "action": {
+        "KeyDown": {
+          "key": "W"
+        }
+      }
+    },
+    {
+      "frame": 10273068,
+      "action": {
+        "KeyDown": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 10308613,
+      "action": {
+        "KeyUp": {
+          "key": "W"
+        }
+      }
+    },
+    {
+      "frame": 10308613,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 10486353,
+      "action": {
+        "KeyUp": {
+          "key": "Space"
+        }
+      }
+    },
+    {
+      "frame": 10557439,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 10557439,
+      "action": {
+        "KeyDown": {
+          "key": "A"
+        }
+      }
+    },
+    {
+      "frame": 10735173,
+      "action": {
+        "KeyUp": {
+          "key": "A"
+        }
+      }
+    },
+    {
+      "frame": 10735173,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 10948453,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 10948453,
+      "action": {
+        "KeyDown": {
+          "key": "P"
+        }
+      }
+    },
+    {
+      "frame": 11090640,
+      "action": {
+        "KeyUp": {
+          "key": "P"
+        }
+      }
+    },
+    {
+      "frame": 11090640,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11090640,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11090640,
+      "action": {
+        "KeyDown": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 11197282,
+      "action": {
+        "KeyUp": {
+          "key": "O"
+        }
+      }
+    },
+    {
+      "frame": 11197282,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11232832,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11232832,
+      "action": {
+        "KeyDown": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 11375011,
+      "action": {
+        "KeyUp": {
+          "key": "G"
+        }
+      }
+    },
+    {
+      "frame": 11375011,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11446110,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11446110,
+      "action": {
+        "KeyDown": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 11517198,
+      "action": {
+        "KeyUp": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 11517198,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11659387,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 11659387,
+      "action": {
+        "KeyDown": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 11801581,
+      "action": {
+        "KeyUp": {
+          "key": "E"
+        }
+      }
+    },
+    {
+      "frame": 11801581,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 12121494,
+      "action": {
+        "KeyDown": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 12263683,
+      "action": {
+        "KeyDown": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 12441418,
+      "action": {
+        "KeyUp": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 12548052,
+      "action": {
+        "KeyDown": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 12619144,
+      "action": {
+        "KeyUp": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 12761336,
+      "action": {
+        "KeyDown": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 12903518,
+      "action": {
+        "KeyUp": {
+          "key": "Num1"
+        }
+      }
+    },
+    {
+      "frame": 13045704,
+      "action": {
+        "KeyUp": {
+          "key": "Shift"
+        }
+      }
+    },
+    {
+      "frame": 13258985,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -841,7 +1201,7 @@
       }
     },
     {
-      "frame": 16954696,
+      "frame": 13401172,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -849,15 +1209,55 @@
       }
     },
     {
-      "frame": 63911842,
+      "frame": 14538671,
       "action": {
         "TakeSnapshot": {
-          "name": "monitor_frame_63911842"
+          "name": "monitor_frame_14538671"
         }
       }
     },
     {
-      "frame": 66826667,
+      "frame": 16387101,
+      "action": {
+        "KeyDown": {
+          "key": "P"
+        }
+      }
+    },
+    {
+      "frame": 16493737,
+      "action": {
+        "KeyUp": {
+          "key": "P"
+        }
+      }
+    },
+    {
+      "frame": 16813652,
+      "action": {
+        "KeyDown": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 16955839,
+      "action": {
+        "KeyUp": {
+          "key": "Enter"
+        }
+      }
+    },
+    {
+      "frame": 61709095,
+      "action": {
+        "TakeSnapshot": {
+          "name": "monitor_frame_61709095"
+        }
+      }
+    },
+    {
+      "frame": 66045787,
       "action": {
         "KeyDown": {
           "key": "F4"
@@ -865,7 +1265,7 @@
       }
     },
     {
-      "frame": 66968851,
+      "frame": 66187974,
       "action": {
         "KeyUp": {
           "key": "F4"
@@ -873,23 +1273,23 @@
       }
     },
     {
-      "frame": 69705953,
+      "frame": 69031704,
       "action": {
         "KeyDown": {
-          "key": "O"
+          "key": "K"
         }
       }
     },
     {
-      "frame": 69883680,
+      "frame": 69209440,
       "action": {
         "KeyUp": {
-          "key": "O"
+          "key": "K"
         }
       }
     },
     {
-      "frame": 70025866,
+      "frame": 69955926,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -897,7 +1297,7 @@
       }
     },
     {
-      "frame": 70168053,
+      "frame": 70133655,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -905,7 +1305,7 @@
       }
     },
     {
-      "frame": 70345788,
+      "frame": 72337546,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -913,7 +1313,7 @@
       }
     },
     {
-      "frame": 70523521,
+      "frame": 72586373,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -921,7 +1321,7 @@
       }
     },
     {
-      "frame": 70559067,
+      "frame": 73937153,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -929,7 +1329,7 @@
       }
     },
     {
-      "frame": 70665705,
+      "frame": 74150425,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -937,7 +1337,7 @@
       }
     },
     {
-      "frame": 70807894,
+      "frame": 74363708,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -945,7 +1345,7 @@
       }
     },
     {
-      "frame": 70914533,
+      "frame": 74470348,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -953,7 +1353,7 @@
       }
     },
     {
-      "frame": 71056729,
+      "frame": 74576985,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -961,7 +1361,7 @@
       }
     },
     {
-      "frame": 71198908,
+      "frame": 74825813,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -969,7 +1369,7 @@
       }
     },
     {
-      "frame": 71980936,
+      "frame": 75430119,
       "action": {
         "KeyDown": {
           "key": "Comma"
@@ -977,7 +1377,7 @@
       }
     },
     {
-      "frame": 72158665,
+      "frame": 75714485,
       "action": {
         "KeyUp": {
           "key": "Comma"
@@ -985,7 +1385,7 @@
       }
     },
     {
-      "frame": 72478588,
+      "frame": 76887519,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -993,7 +1393,7 @@
       }
     },
     {
-      "frame": 72620772,
+      "frame": 77065251,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1001,7 +1401,7 @@
       }
     },
     {
-      "frame": 72869606,
+      "frame": 77278537,
       "action": {
         "KeyDown": {
           "key": "Num7"
@@ -1009,7 +1409,7 @@
       }
     },
     {
-      "frame": 73047338,
+      "frame": 77420722,
       "action": {
         "KeyUp": {
           "key": "Num7"
@@ -1017,7 +1417,7 @@
       }
     },
     {
-      "frame": 73402801,
+      "frame": 77882830,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -1025,7 +1425,7 @@
       }
     },
     {
-      "frame": 73509443,
+      "frame": 77989464,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1033,7 +1433,7 @@
       }
     },
     {
-      "frame": 73651627,
+      "frame": 78167206,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -1041,7 +1441,7 @@
       }
     },
     {
-      "frame": 73793814,
+      "frame": 78344939,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1049,7 +1449,7 @@
       }
     },
     {
-      "frame": 74718024,
+      "frame": 78771498,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -1057,7 +1457,7 @@
       }
     },
     {
-      "frame": 74860225,
+      "frame": 78984779,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -1065,23 +1465,23 @@
       }
     },
     {
-      "frame": 106654821,
+      "frame": 81828506,
       "action": {
         "KeyDown": {
-          "key": "O"
+          "key": "K"
         }
       }
     },
     {
-      "frame": 106832553,
+      "frame": 81935146,
       "action": {
         "KeyUp": {
-          "key": "O"
+          "key": "K"
         }
       }
     },
     {
-      "frame": 107152475,
+      "frame": 82539443,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -1089,7 +1489,7 @@
       }
     },
     {
-      "frame": 107330211,
+      "frame": 82752723,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -1097,7 +1497,7 @@
       }
     },
     {
-      "frame": 107614576,
+      "frame": 83108184,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -1105,7 +1505,7 @@
       }
     },
     {
-      "frame": 107756772,
+      "frame": 83285926,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1113,7 +1513,7 @@
       }
     },
     {
-      "frame": 107792313,
+      "frame": 84316777,
       "action": {
         "KeyDown": {
           "key": "Num8"
@@ -1121,7 +1521,7 @@
       }
     },
     {
-      "frame": 107934499,
+      "frame": 84458964,
       "action": {
         "KeyUp": {
           "key": "Num8"
@@ -1129,7 +1529,7 @@
       }
     },
     {
-      "frame": 108041140,
+      "frame": 84707794,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -1137,7 +1537,7 @@
       }
     },
     {
-      "frame": 108183325,
+      "frame": 84849974,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -1145,7 +1545,7 @@
       }
     },
     {
-      "frame": 108289963,
+      "frame": 84992160,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -1153,7 +1553,7 @@
       }
     },
     {
-      "frame": 108432154,
+      "frame": 85169897,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -1161,7 +1561,7 @@
       }
     },
     {
-      "frame": 109285279,
+      "frame": 86911684,
       "action": {
         "KeyDown": {
           "key": "Comma"
@@ -1169,7 +1569,7 @@
       }
     },
     {
-      "frame": 109463005,
+      "frame": 87089416,
       "action": {
         "KeyUp": {
           "key": "Comma"
@@ -1177,7 +1577,7 @@
       }
     },
     {
-      "frame": 109676289,
+      "frame": 87409336,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -1185,7 +1585,7 @@
       }
     },
     {
-      "frame": 109782923,
+      "frame": 87515971,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1193,7 +1593,7 @@
       }
     },
     {
-      "frame": 109960657,
+      "frame": 87622614,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -1201,7 +1601,7 @@
       }
     },
     {
-      "frame": 110031759,
+      "frame": 87800346,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1209,7 +1609,7 @@
       }
     },
     {
-      "frame": 110209483,
+      "frame": 87906984,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -1217,7 +1617,7 @@
       }
     },
     {
-      "frame": 110316127,
+      "frame": 88049179,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1225,7 +1625,7 @@
       }
     },
     {
-      "frame": 110458312,
+      "frame": 88155812,
       "action": {
         "KeyDown": {
           "key": "F"
@@ -1233,7 +1633,7 @@
       }
     },
     {
-      "frame": 110600498,
+      "frame": 88298003,
       "action": {
         "KeyUp": {
           "key": "F"
@@ -1241,7 +1641,7 @@
       }
     },
     {
-      "frame": 110955967,
+      "frame": 89613224,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -1249,7 +1649,7 @@
       }
     },
     {
-      "frame": 111062605,
+      "frame": 89790961,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -1257,10 +1657,10 @@
       }
     },
     {
-      "frame": 141929725,
+      "frame": 93203438,
       "action": {
         "TakeSnapshot": {
-          "name": "monitor_frame_141929725"
+          "name": "monitor_frame_93203438"
         }
       }
     }

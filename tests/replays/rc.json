@@ -5,11 +5,11 @@
     "autorun": false,
     "sample_rate": 48000,
     "color_mode": "Color",
-    "is_crt": false
+    "gigascreen": false
   },
   "events": [
     {
-      "frame": 496596,
+      "frame": 959847,
       "action": {
         "KeyDown": {
           "key": "G"
@@ -17,7 +17,7 @@
       }
     },
     {
-      "frame": 603225,
+      "frame": 1137574,
       "action": {
         "KeyUp": {
           "key": "G"
@@ -25,7 +25,7 @@
       }
     },
     {
-      "frame": 1562985,
+      "frame": 1208666,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -33,7 +33,7 @@
       }
     },
     {
-      "frame": 1705177,
+      "frame": 1350851,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -41,114 +41,82 @@
       }
     },
     {
-      "frame": 2202833,
+      "frame": 1564132,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_2202833"
+          "name": "rc_frame_1564132"
         }
       }
     },
     {
-      "frame": 2238371,
+      "frame": 3128187,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_2238371"
+          "name": "rc_frame_3128187"
         }
       }
     },
     {
-      "frame": 3411419,
+      "frame": 3163731,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_3411419"
+          "name": "rc_frame_3163731"
         }
       }
     },
     {
-      "frame": 3446961,
+      "frame": 153846058,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_3446961"
+          "name": "rc_frame_153846058"
         }
       }
     },
     {
-      "frame": 3482510,
+      "frame": 154023784,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_3482510"
+          "name": "rc_frame_154023784"
         }
       }
     },
     {
-      "frame": 3518054,
+      "frame": 154059334,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_3518054"
+          "name": "rc_frame_154059334"
         }
       }
     },
     {
-      "frame": 3553598,
+      "frame": 154094878,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_3553598"
+          "name": "rc_frame_154094878"
         }
       }
     },
     {
-      "frame": 3731334,
+      "frame": 154201522,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_3731334"
+          "name": "rc_frame_154201522"
         }
       }
     },
     {
-      "frame": 4406733,
+      "frame": 154237065,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_4406733"
+          "name": "rc_frame_154237065"
         }
       }
     },
     {
-      "frame": 5793044,
+      "frame": 154272615,
       "action": {
         "TakeSnapshot": {
-          "name": "rc_frame_5793044"
-        }
-      }
-    },
-    {
-      "frame": 8245761,
-      "action": {
-        "TakeSnapshot": {
-          "name": "rc_frame_8245761"
-        }
-      }
-    },
-    {
-      "frame": 51363866,
-      "action": {
-        "TakeSnapshot": {
-          "name": "rc_frame_51363866"
-        }
-      }
-    },
-    {
-      "frame": 51470505,
-      "action": {
-        "TakeSnapshot": {
-          "name": "rc_frame_51470505"
-        }
-      }
-    },
-    {
-      "frame": 51506057,
-      "action": {
-        "TakeSnapshot": {
-          "name": "rc_frame_51506057"
+          "name": "rc_frame_154272615"
         }
       }
     }

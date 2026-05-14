@@ -5,19 +5,35 @@
     "autorun": true,
     "sample_rate": 48000,
     "color_mode": "Color",
-    "is_crt": false
+    "gigascreen": false
   },
   "events": [
     {
-      "frame": 4442276,
+      "frame": 2701624,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_4442276"
+          "name": "dvigalka_frame_2701624"
         }
       }
     },
     {
-      "frame": 5508668,
+      "frame": 2737174,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_2737174"
+        }
+      }
+    },
+    {
+      "frame": 2772725,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_2772725"
+        }
+      }
+    },
+    {
+      "frame": 4301231,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -25,7 +41,7 @@
       }
     },
     {
-      "frame": 5650854,
+      "frame": 4407864,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -33,15 +49,87 @@
       }
     },
     {
-      "frame": 10378567,
+      "frame": 4905521,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_10378567"
+          "name": "dvigalka_frame_4905521"
         }
       }
     },
     {
-      "frame": 19016404,
+      "frame": 5900835,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_5900835"
+        }
+      }
+    },
+    {
+      "frame": 6611761,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_6611761"
+        }
+      }
+    },
+    {
+      "frame": 6682855,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_6682855"
+        }
+      }
+    },
+    {
+      "frame": 6718409,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_6718409"
+        }
+      }
+    },
+    {
+      "frame": 6753944,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_6753944"
+        }
+      }
+    },
+    {
+      "frame": 6789494,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_6789494"
+        }
+      }
+    },
+    {
+      "frame": 6825039,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_6825039"
+        }
+      }
+    },
+    {
+      "frame": 6896131,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_6896131"
+        }
+      }
+    },
+    {
+      "frame": 7109417,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_7109417"
+        }
+      }
+    },
+    {
+      "frame": 9988696,
       "action": {
         "KeyDown": {
           "key": "Num5"
@@ -49,7 +137,7 @@
       }
     },
     {
-      "frame": 19194132,
+      "frame": 10130879,
       "action": {
         "KeyUp": {
           "key": "Num5"
@@ -57,63 +145,79 @@
       }
     },
     {
-      "frame": 21469120,
+      "frame": 12263684,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_21469120"
+          "name": "dvigalka_frame_12263684"
         }
       }
     },
     {
-      "frame": 21540217,
+      "frame": 12299238,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_21540217"
+          "name": "dvigalka_frame_12299238"
         }
       }
     },
     {
-      "frame": 21931225,
+      "frame": 14076565,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_21931225"
+          "name": "dvigalka_frame_14076565"
         }
       }
     },
     {
-      "frame": 22144512,
+      "frame": 14112108,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_22144512"
+          "name": "dvigalka_frame_14112108"
         }
       }
     },
     {
-      "frame": 29396036,
+      "frame": 15178512,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_29396036"
+          "name": "dvigalka_frame_15178512"
         }
       }
     },
     {
-      "frame": 29609310,
+      "frame": 29610459,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_29609310"
+          "name": "dvigalka_frame_29610459"
         }
       }
     },
     {
-      "frame": 32239764,
+      "frame": 30108112,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_32239764"
+          "name": "dvigalka_frame_30108112"
         }
       }
     },
     {
-      "frame": 53461119,
+      "frame": 32205358,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_32205358"
+        }
+      }
+    },
+    {
+      "frame": 38994772,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_38994772"
+        }
+      }
+    },
+    {
+      "frame": 39990087,
       "action": {
         "KeyDown": {
           "key": "Num6"
@@ -121,7 +225,7 @@
       }
     },
     {
-      "frame": 53638858,
+      "frame": 40096718,
       "action": {
         "KeyUp": {
           "key": "Num6"
@@ -129,7 +233,7 @@
       }
     },
     {
-      "frame": 56482586,
+      "frame": 41874054,
       "action": {
         "KeyDown": {
           "key": "Right"
@@ -137,7 +241,7 @@
       }
     },
     {
-      "frame": 56695880,
+      "frame": 42122878,
       "action": {
         "KeyUp": {
           "key": "Right"
@@ -145,7 +249,15 @@
       }
     },
     {
-      "frame": 60214984,
+      "frame": 43047094,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_43047094"
+        }
+      }
+    },
+    {
+      "frame": 44184592,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -153,7 +265,7 @@
       }
     },
     {
-      "frame": 60357177,
+      "frame": 44291224,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -161,82 +273,266 @@
       }
     },
     {
-      "frame": 65724730,
+      "frame": 48627920,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_65724730"
+          "name": "dvigalka_frame_48627920"
         }
       }
     },
     {
-      "frame": 68710644,
+      "frame": 49907609,
       "action": {
         "KeyDown": {
-          "key": "Num5"
+          "key": "Left"
         }
       }
     },
     {
-      "frame": 68852827,
+      "frame": 50120885,
       "action": {
         "KeyUp": {
-          "key": "Num5"
+          "key": "Left"
         }
       }
     },
     {
-      "frame": 73616081,
-      "action": {
-        "TakeSnapshot": {
-          "name": "dvigalka_frame_73616081"
-        }
-      }
-    },
-    {
-      "frame": 73687179,
-      "action": {
-        "TakeSnapshot": {
-          "name": "dvigalka_frame_73687179"
-        }
-      }
-    },
-    {
-      "frame": 79587921,
-      "action": {
-        "TakeSnapshot": {
-          "name": "dvigalka_frame_79587921"
-        }
-      }
-    },
-    {
-      "frame": 88865609,
-      "action": {
-        "TakeSnapshot": {
-          "name": "dvigalka_frame_88865609"
-        }
-      }
-    },
-    {
-      "frame": 92882373,
+      "frame": 51791580,
       "action": {
         "KeyDown": {
-          "key": "Num6"
+          "key": "Left"
         }
       }
     },
     {
-      "frame": 93024561,
+      "frame": 52040403,
       "action": {
         "KeyUp": {
-          "key": "Num6"
+          "key": "Left"
         }
       }
     },
     {
-      "frame": 98285465,
+      "frame": 53497814,
+      "action": {
+        "KeyDown": {
+          "key": "Down"
+        }
+      }
+    },
+    {
+      "frame": 53746646,
+      "action": {
+        "KeyUp": {
+          "key": "Down"
+        }
+      }
+    },
+    {
+      "frame": 55097413,
+      "action": {
+        "KeyDown": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 55204056,
+      "action": {
+        "KeyUp": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 55808355,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 56021629,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 56554827,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 56768104,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 58367709,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 58580985,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 59789574,
+      "action": {
+        "KeyDown": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 60002853,
+      "action": {
+        "KeyUp": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 60536051,
+      "action": {
+        "KeyDown": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 60749339,
+      "action": {
+        "KeyUp": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 63344243,
+      "action": {
+        "KeyDown": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 63557518,
+      "action": {
+        "KeyUp": {
+          "key": "Left"
+        }
+      }
+    },
+    {
+      "frame": 67894216,
+      "action": {
+        "KeyDown": {
+          "key": "Num3"
+        }
+      }
+    },
+    {
+      "frame": 68036405,
+      "action": {
+        "KeyUp": {
+          "key": "Num3"
+        }
+      }
+    },
+    {
+      "frame": 73652780,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 73830507,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 74399263,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 74648079,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 75216827,
+      "action": {
+        "KeyDown": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 75465661,
+      "action": {
+        "KeyUp": {
+          "key": "Right"
+        }
+      }
+    },
+    {
+      "frame": 82681631,
       "action": {
         "TakeSnapshot": {
-          "name": "dvigalka_frame_98285465"
+          "name": "dvigalka_frame_82681631"
+        }
+      }
+    },
+    {
+      "frame": 86094106,
+      "action": {
+        "KeyDown": {
+          "key": "Num4"
+        }
+      }
+    },
+    {
+      "frame": 86271841,
+      "action": {
+        "KeyUp": {
+          "key": "Num4"
+        }
+      }
+    },
+    {
+      "frame": 88546833,
+      "action": {
+        "TakeSnapshot": {
+          "name": "dvigalka_frame_88546833"
         }
       }
     }

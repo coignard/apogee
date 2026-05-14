@@ -5,11 +5,11 @@
     "autorun": false,
     "sample_rate": 48000,
     "color_mode": "Color",
-    "is_crt": false
+    "gigascreen": false
   },
   "events": [
     {
-      "frame": 958695,
+      "frame": 1173126,
       "action": {
         "KeyDown": {
           "key": "G"
@@ -17,7 +17,7 @@
       }
     },
     {
-      "frame": 1136424,
+      "frame": 1350857,
       "action": {
         "KeyUp": {
           "key": "G"
@@ -25,7 +25,7 @@
       }
     },
     {
-      "frame": 1456350,
+      "frame": 2381709,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -33,7 +33,7 @@
       }
     },
     {
-      "frame": 1598535,
+      "frame": 2488350,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -41,15 +41,39 @@
       }
     },
     {
-      "frame": 2373910,
+      "frame": 2705982,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_2373910"
+          "name": "tia2_frame_2705982"
         }
       }
     },
     {
-      "frame": 4570008,
+      "frame": 2915141,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_2915141"
+        }
+      }
+    },
+    {
+      "frame": 2949992,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_2949992"
+        }
+      }
+    },
+    {
+      "frame": 2984852,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_2984852"
+        }
+      }
+    },
+    {
+      "frame": 7133035,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -57,7 +81,7 @@
       }
     },
     {
-      "frame": 4744305,
+      "frame": 7307333,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -65,15 +89,15 @@
       }
     },
     {
-      "frame": 5023171,
+      "frame": 7621059,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_5023171"
+          "name": "tia2_frame_7621059"
         }
       }
     },
     {
-      "frame": 9729088,
+      "frame": 10061160,
       "action": {
         "KeyDown": {
           "key": "Num0"
@@ -81,7 +105,7 @@
       }
     },
     {
-      "frame": 9833664,
+      "frame": 10200597,
       "action": {
         "KeyUp": {
           "key": "Num0"
@@ -89,23 +113,31 @@
       }
     },
     {
-      "frame": 10112533,
+      "frame": 10758338,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_10112533"
+          "name": "tia2_frame_10758338"
         }
       }
     },
     {
-      "frame": 39045225,
+      "frame": 19124418,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_39045225"
+          "name": "tia2_frame_19124418"
         }
       }
     },
     {
-      "frame": 40439572,
+      "frame": 19263851,
+      "action": {
+        "TakeSnapshot": {
+          "name": "tia2_frame_19263851"
+        }
+      }
+    },
+    {
+      "frame": 30523200,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -113,7 +145,7 @@
       }
     },
     {
-      "frame": 40613864,
+      "frame": 30732350,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -121,15 +153,15 @@
       }
     },
     {
-      "frame": 45319786,
+      "frame": 35368554,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_45319786"
+          "name": "tia2_frame_35368554"
         }
       }
     },
     {
-      "frame": 46191253,
+      "frame": 39586451,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -137,7 +169,7 @@
       }
     },
     {
-      "frame": 46435264,
+      "frame": 39795611,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -145,15 +177,15 @@
       }
     },
     {
-      "frame": 50513729,
+      "frame": 68205416,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_50513729"
+          "name": "tia2_frame_68205416"
         }
       }
     },
     {
-      "frame": 51420060,
+      "frame": 69669486,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -161,7 +193,7 @@
       }
     },
     {
-      "frame": 51619112,
+      "frame": 69846526,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -169,15 +201,15 @@
       }
     },
     {
-      "frame": 52415358,
+      "frame": 73458071,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_52415358"
+          "name": "tia2_frame_73458071"
         }
       }
     },
     {
-      "frame": 55003159,
+      "frame": 77183361,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -185,7 +217,7 @@
       }
     },
     {
-      "frame": 55212309,
+      "frame": 77351231,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -193,15 +225,15 @@
       }
     },
     {
-      "frame": 57896429,
+      "frame": 96837226,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_57896429"
+          "name": "tia2_frame_96837226"
         }
       }
     },
     {
-      "frame": 59465066,
+      "frame": 97325247,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -209,7 +241,7 @@
       }
     },
     {
-      "frame": 59674228,
+      "frame": 97499542,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -217,15 +249,15 @@
       }
     },
     {
-      "frame": 62602347,
+      "frame": 110466967,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_62602347"
+          "name": "tia2_frame_110466967"
         }
       }
     },
     {
-      "frame": 66471661,
+      "frame": 111931036,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -233,7 +265,7 @@
       }
     },
     {
-      "frame": 66680816,
+      "frame": 112070465,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -241,15 +273,15 @@
       }
     },
     {
-      "frame": 86863978,
+      "frame": 133090239,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_86863978"
+          "name": "tia2_frame_133090239"
         }
       }
     },
     {
-      "frame": 87770308,
+      "frame": 137900737,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -257,7 +289,7 @@
       }
     },
     {
-      "frame": 87979457,
+      "frame": 138005313,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -265,15 +297,15 @@
       }
     },
     {
-      "frame": 92615657,
+      "frame": 138284179,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_92615657"
+          "name": "tia2_frame_138284179"
         }
       }
     },
     {
-      "frame": 93243117,
+      "frame": 147382300,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -281,7 +313,7 @@
       }
     },
     {
-      "frame": 93487127,
+      "frame": 147591451,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -289,15 +321,15 @@
       }
     },
     {
-      "frame": 98785642,
+      "frame": 154423748,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_98785642"
+          "name": "tia2_frame_154423748"
         }
       }
     },
     {
-      "frame": 99273664,
+      "frame": 155086065,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -305,7 +337,7 @@
       }
     },
     {
-      "frame": 99482826,
+      "frame": 155295216,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -313,15 +345,15 @@
       }
     },
     {
-      "frame": 114750913,
+      "frame": 164393320,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_114750913"
+          "name": "tia2_frame_164393320"
         }
       }
     },
     {
-      "frame": 118899100,
+      "frame": 166066538,
       "action": {
         "KeyDown": {
           "key": "Space"
@@ -329,7 +361,7 @@
       }
     },
     {
-      "frame": 119108245,
+      "frame": 166205974,
       "action": {
         "KeyUp": {
           "key": "Space"
@@ -337,10 +369,10 @@
       }
     },
     {
-      "frame": 119979715,
+      "frame": 166519712,
       "action": {
         "TakeSnapshot": {
-          "name": "tia2_frame_119979715"
+          "name": "tia2_frame_166519712"
         }
       }
     }

@@ -41,10 +41,10 @@ fn replay_matches_snapshot(replay_path_str: &str) {
     let sample_rate = player.replay.metadata.sample_rate;
     let autorun = player.replay.metadata.autorun;
     let color_mode = player.replay.metadata.color_mode;
-    let is_crt = player.replay.metadata.is_crt;
+    let gigascreen = player.replay.metadata.gigascreen;
 
     let mut machine = Machine::new(SYSTEM_ROM.to_vec(), sample_rate);
-    let mut video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, is_crt);
+    let mut video = VideoRenderer::new(FONT_ROM.to_vec(), color_mode, gigascreen);
 
     if base_name != "monitor" {
         let rka_path = PathBuf::from("tests/assets")

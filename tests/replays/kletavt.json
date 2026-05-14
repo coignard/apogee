@@ -5,11 +5,11 @@
     "autorun": false,
     "sample_rate": 48000,
     "color_mode": "Color",
-    "is_crt": false
+    "gigascreen": false
   },
   "events": [
     {
-      "frame": 994240,
+      "frame": 1066478,
       "action": {
         "KeyDown": {
           "key": "G"
@@ -17,7 +17,7 @@
       }
     },
     {
-      "frame": 1171974,
+      "frame": 1208666,
       "action": {
         "KeyUp": {
           "key": "G"
@@ -25,7 +25,7 @@
       }
     },
     {
-      "frame": 2558305,
+      "frame": 1812963,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -33,7 +33,7 @@
       }
     },
     {
-      "frame": 2664937,
+      "frame": 1954915,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -41,58 +41,82 @@
       }
     },
     {
-      "frame": 3155482,
+      "frame": 2267727,
       "action": {
         "TakeSnapshot": {
-          "name": "kletavt_frame_3155482"
+          "name": "kletavt_frame_2267727"
         }
       }
     },
     {
-      "frame": 3894848,
+      "frame": 2296171,
       "action": {
         "TakeSnapshot": {
-          "name": "kletavt_frame_3894848"
+          "name": "kletavt_frame_2296171"
         }
       }
     },
     {
-      "frame": 3951725,
+      "frame": 2324608,
       "action": {
         "TakeSnapshot": {
-          "name": "kletavt_frame_3951725"
+          "name": "kletavt_frame_2324608"
         }
       }
     },
     {
-      "frame": 3980161,
+      "frame": 3206164,
       "action": {
         "TakeSnapshot": {
-          "name": "kletavt_frame_3980161"
+          "name": "kletavt_frame_3206164"
         }
       }
     },
     {
-      "frame": 12937920,
+      "frame": 3234599,
       "action": {
         "TakeSnapshot": {
-          "name": "kletavt_frame_12937920"
+          "name": "kletavt_frame_3234599"
         }
       }
     },
     {
-      "frame": 26985968,
+      "frame": 12562043,
       "action": {
         "TakeSnapshot": {
-          "name": "kletavt_frame_26985968"
+          "name": "kletavt_frame_12562043"
         }
       }
     },
     {
-      "frame": 36370287,
+      "frame": 12590479,
       "action": {
         "TakeSnapshot": {
-          "name": "kletavt_frame_36370287"
+          "name": "kletavt_frame_12590479"
+        }
+      }
+    },
+    {
+      "frame": 25529467,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_25529467"
+        }
+      }
+    },
+    {
+      "frame": 37274086,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_37274086"
+        }
+      }
+    },
+    {
+      "frame": 77512913,
+      "action": {
+        "TakeSnapshot": {
+          "name": "kletavt_frame_77512913"
         }
       }
     }

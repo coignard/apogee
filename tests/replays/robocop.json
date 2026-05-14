@@ -5,11 +5,11 @@
     "autorun": false,
     "sample_rate": 48000,
     "color_mode": "Color",
-    "is_crt": false
+    "gigascreen": false
   },
   "events": [
     {
-      "frame": 816506,
+      "frame": 1244211,
       "action": {
         "KeyDown": {
           "key": "G"
@@ -17,7 +17,7 @@
       }
     },
     {
-      "frame": 958694,
+      "frame": 1386399,
       "action": {
         "KeyUp": {
           "key": "G"
@@ -25,7 +25,7 @@
       }
     },
     {
-      "frame": 1136429,
+      "frame": 3270374,
       "action": {
         "KeyDown": {
           "key": "Enter"
@@ -33,7 +33,7 @@
       }
     },
     {
-      "frame": 1243064,
+      "frame": 3412562,
       "action": {
         "KeyUp": {
           "key": "Enter"
@@ -41,282 +41,322 @@
       }
     },
     {
-      "frame": 2615168,
+      "frame": 3838892,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_2615168"
+          "name": "robocop_frame_3838892"
         }
       }
     },
     {
-      "frame": 8643886,
+      "frame": 3952639,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_8643886"
+          "name": "robocop_frame_3952639"
         }
       }
     },
     {
-      "frame": 8729196,
+      "frame": 4748888,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_8729196"
+          "name": "robocop_frame_4748888"
         }
       }
     },
     {
-      "frame": 8842948,
+      "frame": 10862919,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_8842948"
+          "name": "robocop_frame_10862919"
         }
       }
     },
     {
-      "frame": 8956695,
+      "frame": 11403221,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_8956695"
+          "name": "robocop_frame_11403221"
         }
       }
     },
     {
-      "frame": 9070445,
+      "frame": 12540727,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_9070445"
+          "name": "robocop_frame_12540727"
         }
       }
     },
     {
-      "frame": 9269509,
+      "frame": 38602612,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_9269509"
+          "name": "robocop_frame_38602612"
         }
       }
     },
     {
-      "frame": 10407001,
+      "frame": 38630591,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_10407001"
+          "name": "robocop_frame_38630591"
         }
       }
     },
     {
-      "frame": 36469353,
+      "frame": 44338241,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_36469353"
+          "name": "robocop_frame_44338241"
         }
       }
     },
     {
-      "frame": 36497332,
+      "frame": 45933023,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_36497332"
+          "name": "robocop_frame_45933023"
         }
       }
     },
     {
-      "frame": 42708600,
+      "frame": 47609004,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_42708600"
+          "name": "robocop_frame_47609004"
         }
       }
     },
     {
-      "frame": 45504632,
+      "frame": 52613970,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_45504632"
+          "name": "robocop_frame_52613970"
         }
       }
     },
     {
-      "frame": 50936162,
+      "frame": 81790664,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_50936162"
+          "name": "robocop_frame_81790664"
         }
       }
     },
     {
-      "frame": 80454115,
+      "frame": 105877090,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_80454115"
+          "name": "robocop_frame_105877090"
         }
       }
     },
     {
-      "frame": 88530316,
+      "frame": 105905527,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_88530316"
+          "name": "robocop_frame_105905527"
         }
       }
     },
     {
-      "frame": 103772731,
+      "frame": 105933964,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_103772731"
+          "name": "robocop_frame_105933964"
         }
       }
     },
     {
-      "frame": 103829599,
+      "frame": 108237384,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_103829599"
+          "name": "robocop_frame_108237384"
         }
       }
     },
     {
-      "frame": 103914911,
+      "frame": 113157047,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_103914911"
+          "name": "robocop_frame_113157047"
         }
       }
     },
     {
-      "frame": 106133025,
+      "frame": 142276872,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_106133025"
+          "name": "robocop_frame_142276872"
         }
       }
     },
     {
-      "frame": 156666169,
+      "frame": 164116746,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_156666169"
+          "name": "robocop_frame_164116746"
         }
       }
     },
     {
-      "frame": 163348940,
+      "frame": 187605987,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_163348940"
+          "name": "robocop_frame_187605987"
         }
       }
     },
     {
-      "frame": 194004382,
+      "frame": 193265024,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_194004382"
+          "name": "robocop_frame_193265024"
         }
       }
     },
     {
-      "frame": 222100471,
+      "frame": 193293452,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_222100471"
+          "name": "robocop_frame_193293452"
         }
       }
     },
     {
-      "frame": 257704013,
+      "frame": 200857793,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_257704013"
+          "name": "robocop_frame_200857793"
         }
       }
     },
     {
-      "frame": 280340133,
+      "frame": 224204831,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_280340133"
+          "name": "robocop_frame_224204831"
         }
       }
     },
     {
-      "frame": 308294024,
+      "frame": 229607927,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_308294024"
+          "name": "robocop_frame_229607927"
         }
       }
     },
     {
-      "frame": 338721977,
+      "frame": 284463547,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_338721977"
+          "name": "robocop_frame_284463547"
         }
       }
     },
     {
-      "frame": 344978190,
+      "frame": 293307554,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_344978190"
+          "name": "robocop_frame_293307554"
         }
       }
     },
     {
-      "frame": 354561574,
+      "frame": 338778847,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_354561574"
+          "name": "robocop_frame_338778847"
         }
       }
     },
     {
-      "frame": 367216180,
+      "frame": 341622588,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_367216180"
+          "name": "robocop_frame_341622588"
         }
       }
     },
     {
-      "frame": 389511054,
+      "frame": 357291564,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_389511054"
+          "name": "robocop_frame_357291564"
         }
       }
     },
     {
-      "frame": 390819170,
+      "frame": 369320546,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_390819170"
+          "name": "robocop_frame_369320546"
         }
       }
     },
     {
-      "frame": 392127288,
+      "frame": 389027623,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_392127288"
+          "name": "robocop_frame_389027623"
         }
       }
     },
     {
-      "frame": 393435404,
+      "frame": 391615415,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_393435404"
+          "name": "robocop_frame_391615415"
         }
       }
     },
     {
-      "frame": 394544456,
+      "frame": 392923528,
       "action": {
         "TakeSnapshot": {
-          "name": "robocop_frame_394544456"
+          "name": "robocop_frame_392923528"
+        }
+      }
+    },
+    {
+      "frame": 394231649,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_394231649"
+        }
+      }
+    },
+    {
+      "frame": 395539767,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_395539767"
+        }
+      }
+    },
+    {
+      "frame": 395625076,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_395625076"
+        }
+      }
+    },
+    {
+      "frame": 395653516,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_395653516"
+        }
+      }
+    },
+    {
+      "frame": 398070686,
+      "action": {
+        "TakeSnapshot": {
+          "name": "robocop_frame_398070686"
         }
       }
     }
