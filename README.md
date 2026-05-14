@@ -108,5 +108,5 @@ The `.rka` files in `tests/assets/` are Apogee BK-01 programs written by and © 
 
 <picture>
   <source srcset="https://github.com/coignard/apogee/blob/main/assets/stamp.svg?raw=true">
-  <img src="assets/stamp.svg" alt="Apogee BK-01" height="128">
+  <img src="assets/stamp.svg" alt="I'm not radioactive" height="128">
 </picture>
