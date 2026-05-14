@@ -17,15 +17,19 @@
 
 use serde::{Deserialize, Serialize};
 
-const MATRIX_SIZE: usize = 9;
+const KEY_ROWS: usize = 8;
 const MODIFIER_ROW: usize = 8;
+const MATRIX_SIZE: usize = KEY_ROWS + 1;
+
 const MODIFIER_PORT_C_MASK: u8 = 0xE0;
 const PORT_C_FIXED_BITS: u8 = 0x0F;
+const ALL_KEYS_RELEASED: u8 = 0xFF;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Key {
+    #[default]
     Home,
-    End,
+    Clear,
     Escape,
     F1,
     F2,
@@ -33,7 +37,7 @@ pub enum Key {
     F4,
     F5,
     Tab,
-    PageDown,
+    LineFeed,
     Enter,
     Backspace,
     Left,
@@ -50,13 +54,13 @@ pub enum Key {
     Num7,
     Num8,
     Num9,
-    Equal,
+    Colon,
     Semicolon,
     Comma,
     Minus,
     Period,
     Slash,
-    Backquote,
+    At,
     A,
     B,
     C,
@@ -86,18 +90,18 @@ pub enum Key {
     BracketLeft,
     Backslash,
     BracketRight,
-    Quote,
+    Caret,
     Space,
     Shift,
     Ctrl,
-    Alt,
+    Lang,
 }
 
 impl Key {
     pub const fn coords(self) -> (usize, usize) {
         match self {
             Self::Home => (0, 0),
-            Self::End => (0, 1),
+            Self::Clear => (0, 1),
             Self::Escape => (0, 2),
             Self::F1 => (0, 3),
             Self::F2 => (0, 4),
@@ -105,7 +109,7 @@ impl Key {
             Self::F4 => (0, 6),
             Self::F5 => (0, 7),
             Self::Tab => (1, 0),
-            Self::PageDown => (1, 1),
+            Self::LineFeed => (1, 1),
             Self::Enter => (1, 2),
             Self::Backspace => (1, 3),
             Self::Left => (1, 4),
@@ -122,13 +126,13 @@ impl Key {
             Self::Num7 => (2, 7),
             Self::Num8 => (3, 0),
             Self::Num9 => (3, 1),
-            Self::Equal => (3, 2),
+            Self::Colon => (3, 2),
             Self::Semicolon => (3, 3),
             Self::Comma => (3, 4),
             Self::Minus => (3, 5),
             Self::Period => (3, 6),
             Self::Slash => (3, 7),
-            Self::Backquote => (4, 0),
+            Self::At => (4, 0),
             Self::A => (4, 1),
             Self::B => (4, 2),
             Self::C => (4, 3),
@@ -158,16 +162,16 @@ impl Key {
             Self::BracketLeft => (7, 3),
             Self::Backslash => (7, 4),
             Self::BracketRight => (7, 5),
-            Self::Quote => (7, 6),
+            Self::Caret => (7, 6),
             Self::Space => (7, 7),
             Self::Shift => (8, 5),
             Self::Ctrl => (8, 6),
-            Self::Alt => (8, 7),
+            Self::Lang => (8, 7),
         }
     }
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Keyboard {
     pub matrix: [u8; MATRIX_SIZE],
 }
@@ -175,13 +179,15 @@ pub struct Keyboard {
 impl Keyboard {
     pub fn new() -> Self {
         Self {
-            matrix: [0xFF; MATRIX_SIZE],
+            matrix: [ALL_KEYS_RELEASED; MATRIX_SIZE],
         }
     }
 
+    #[inline]
     pub fn update_key(&mut self, key: Key, pressed: bool) {
         let (row, col) = key.coords();
         let mask = 1 << col;
+
         if pressed {
             self.matrix[row] &= !mask;
         } else {
@@ -189,14 +195,16 @@ impl Keyboard {
         }
     }
 
-    pub fn read_matrix(&self, kbd_mask: u8) -> (u8, u8) {
-        let mut kbd_res = 0xFF;
-        for k in 0..8 {
-            if (kbd_mask & (1 << k)) == 0 {
-                kbd_res &= self.matrix[k];
-            }
-        }
+    #[inline]
+    pub fn read_matrix(&self, port_a: u8) -> (u8, u8) {
+        let kbd_res = self.matrix[0..KEY_ROWS]
+            .iter()
+            .enumerate()
+            .filter(|(k, _)| (port_a & (1 << k)) == 0)
+            .fold(ALL_KEYS_RELEASED, |acc, (_, &row_data)| acc & row_data);
+
         let port_c_in = (self.matrix[MODIFIER_ROW] & MODIFIER_PORT_C_MASK) | PORT_C_FIXED_BITS;
+
         (kbd_res, port_c_in)
     }
 }
