@@ -33,7 +33,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
 
 use crate::app::audio::AudioSystem;
-use crate::app::keyboard::map_keycode;
+use crate::app::keyboard::{KeyboardLayout, KeyboardTranslator};
 
 use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_HZ, Machine};
@@ -124,6 +124,7 @@ pub struct AppConfig {
     pub recorder: Option<ReplayRecorder>,
     pub player: Option<ReplayPlayer>,
     pub midi_out: Option<midir::MidiOutputConnection>,
+    pub keyboard_layout: KeyboardLayout,
 }
 
 pub struct App {
@@ -143,6 +144,7 @@ pub struct App {
     is_fast_forwarding: bool,
 
     has_player: bool,
+    keyboard_translator: KeyboardTranslator,
 
     cmd_tx: Sender<EmulationCommand>,
     frame_rx: Receiver<EmulationFrame>,
@@ -320,6 +322,7 @@ impl App {
         let has_player = config.player.is_some();
         let recorder_opt = config.recorder;
         let player_opt = config.player;
+        let keyboard_translator = KeyboardTranslator::new(config.keyboard_layout);
 
         let emu_thread = std::thread::Builder::new()
             .name("emulation".into())
@@ -354,6 +357,7 @@ impl App {
             f9_pressed_since: None,
             is_fast_forwarding: false,
             has_player,
+            keyboard_translator,
             cmd_tx,
             frame_rx,
             emu_err_rx,
@@ -456,13 +460,15 @@ impl ApplicationHandler for App {
                         }
                         _ => {}
                     }
+                }
 
-                    if let Some(key) = map_keycode(key_code)
-                        && !self.has_player
-                    {
-                        let _ = self
-                            .cmd_tx
-                            .send(EmulationCommand::KeyEvent { key, pressed });
+                if !event.repeat && !self.has_player {
+                    let actions = self.keyboard_translator.process_key(&event);
+                    for (key, key_pressed) in actions {
+                        let _ = self.cmd_tx.send(EmulationCommand::KeyEvent {
+                            key,
+                            pressed: key_pressed,
+                        });
                     }
                 }
             }
