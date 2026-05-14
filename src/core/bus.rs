@@ -148,8 +148,14 @@ impl Machine for Bus {
                 let port_a = self.user_vv55.peripheral_read_a();
                 let port_b = self.user_vv55.peripheral_read_b();
                 let port_c = self.user_vv55.peripheral_read_c();
-                self.user_slot
-                    .update(port_a, port_b, port_c, self.current_cycle);
+
+                if self
+                    .user_slot
+                    .update(port_a, port_b, port_c, self.current_cycle)
+                {
+                    self.user_vv55.peripheral_write_c(!0x40);
+                    self.user_vv55.peripheral_write_c(0xFF);
+                }
             }
             memory_map::CRTC_BASE..=memory_map::CRTC_END => self.vg75.write(addr, val),
             memory_map::DMA_ROM_BASE..=memory_map::DMA_ROM_END => self.vt57.write(addr, val),

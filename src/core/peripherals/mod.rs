@@ -42,11 +42,14 @@ impl UserPeripheral {
     }
 
     #[inline]
-    pub fn update(&mut self, port_a: u8, port_b: u8, port_c: u8, cycle_count: u64) {
+    pub fn update(&mut self, port_a: u8, port_b: u8, port_c: u8, cycle_count: u64) -> bool {
         match self {
-            Self::RomDisk(disk) => disk.update_addr(port_b, port_c),
+            Self::RomDisk(disk) => {
+                disk.update_addr(port_b, port_c);
+                false
+            }
             Self::Midi(midi) => midi.update(port_a, port_c, cycle_count),
-            Self::None => {}
+            Self::None => false,
         }
     }
 }

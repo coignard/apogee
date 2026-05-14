@@ -31,7 +31,7 @@ pub struct ReplayMetadata {
     pub autorun: bool,
     pub sample_rate: u32,
     pub color_mode: ColorMode,
-    pub is_crt: bool,
+    pub gigascreen: bool,
 }
 
 #[derive(Serialize, Deserialize)]

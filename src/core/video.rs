@@ -45,7 +45,7 @@ const GRAYSCALE_PALETTE: [[u8; 4]; 8] = [
 pub struct VideoRenderer {
     pub chargen_rom: Vec<u8>,
     pub color_mode: ColorMode,
-    is_crt_blend: bool,
+    gigascreen: bool,
     width: u32,
     height: u32,
     frame_buffer: Vec<u8>,
@@ -53,14 +53,14 @@ pub struct VideoRenderer {
 }
 
 impl VideoRenderer {
-    pub fn new(chargen_rom: Vec<u8>, color_mode: ColorMode, is_crt_blend: bool) -> Self {
+    pub fn new(chargen_rom: Vec<u8>, color_mode: ColorMode, gigascreen: bool) -> Self {
         let width = (DEFAULT_CHARS_PER_ROW * CHAR_WIDTH) as u32;
         let height = (DEFAULT_ROWS_PER_SCREEN * DEFAULT_LINES_PER_ROW) as u32;
 
         Self {
             chargen_rom,
             color_mode,
-            is_crt_blend,
+            gigascreen,
             width,
             height,
             frame_buffer: vec![0; (width * height * 4) as usize],
@@ -221,7 +221,7 @@ impl VideoRenderer {
             }
         }
 
-        if self.is_crt_blend {
+        if self.gigascreen {
             if size_changed {
                 self.prev_frame_buffer.copy_from_slice(&self.frame_buffer);
             } else {

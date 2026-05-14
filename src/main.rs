@@ -25,6 +25,7 @@ use sha2::{Digest, Sha256};
 use winit::event_loop::EventLoop;
 
 use crate::app::audio::AudioSystem;
+use crate::app::keyboard::KeyboardLayout;
 use crate::app::{App, AppConfig, MachineConfig};
 
 use apogee_rs::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
@@ -85,6 +86,21 @@ struct Args {
     #[arg(short = 'f', long = "force", help_heading = "General options")]
     force: bool,
 
+    /// Select keyboard layout
+    /// Default: smart
+    /// Possible values: smart, qwerty, jcuken
+    #[arg(
+        long,
+        value_name = "layout",
+        value_enum,
+        default_value_t = KeyboardLayout::Smart,
+        hide_default_value = true,
+        hide_possible_values = true,
+        help_heading = "Keyboard options",
+        verbatim_doc_comment
+    )]
+    keyboard_layout: KeyboardLayout,
+
     /// Print this message and exit
     #[arg(
         short = 'h',
@@ -108,15 +124,24 @@ struct Args {
     bw: bool,
 
     /// Use a grayscale display with luminance shading
-    #[arg(short, long, conflicts_with = "bw", help_heading = "Display options")]
+    #[arg(long, conflicts_with = "bw", help_heading = "Display options")]
     grayscale: bool,
 
-    /// Blend consecutive frames to simulate CRT
-    #[arg(short, long, help_heading = "Display options")]
-    crt: bool,
+    /// Blend consecutive frames to simulate gigascreen
+    #[arg(long, help_heading = "Display options")]
+    gigascreen: bool,
 
     /// Connect to a MIDI output port by name or index
-    #[arg(long, num_args = 0..=1, default_missing_value = "", help_heading = "MIDI options")]
+    /// Default: first available port
+    #[arg(
+        long,
+        value_name = "port",
+        num_args = 0..=1,
+        default_missing_value = "",
+        hide_default_value = true,
+        help_heading = "MIDI options",
+        verbatim_doc_comment
+    )]
     midi: Option<String>,
 
     /// List available MIDI output ports and exit
@@ -132,7 +157,12 @@ struct Args {
     record: bool,
 
     /// Play a recorded replay from a file
-    #[arg(long, conflicts_with = "record", help_heading = "Debug options")]
+    #[arg(
+        long,
+        value_name = "file",
+        conflicts_with = "record",
+        help_heading = "Debug options"
+    )]
     play: Option<String>,
 }
 
@@ -241,17 +271,17 @@ fn main() -> Result<()> {
             }
         });
 
-    let is_crt = player
+    let gigascreen = player
         .as_ref()
-        .map(|p| p.replay.metadata.is_crt)
-        .unwrap_or(args.crt);
+        .map(|p| p.replay.metadata.gigascreen)
+        .unwrap_or(args.gigascreen);
 
     let rka_payload = rka_data.map(|data| (std::sync::Arc::from(data), autorun, args.force));
 
     let event_loop = EventLoop::new().context("Failed to create winit event loop")?;
 
     let audio = AudioSystem::new().context("Failed to initialize audio system")?;
-    let video = VideoRenderer::new(CHARGEN_ROM.to_vec(), color_mode, is_crt);
+    let video = VideoRenderer::new(CHARGEN_ROM.to_vec(), color_mode, gigascreen);
 
     let sample_rate = player
         .as_ref()
@@ -317,7 +347,7 @@ fn main() -> Result<()> {
             autorun,
             sample_rate,
             color_mode,
-            is_crt,
+            gigascreen,
         })
     });
 
@@ -330,6 +360,7 @@ fn main() -> Result<()> {
             recorder,
             player,
             midi_out: midi_conn,
+            keyboard_layout: args.keyboard_layout,
         },
     );
 

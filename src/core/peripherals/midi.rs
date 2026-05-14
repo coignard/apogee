@@ -18,19 +18,17 @@
 use serde::Serialize;
 
 const MAX_MIDI_BUFFER: usize = 256;
-const STROBE_BIT: u8 = 0x01;
+const OBF_BIT: u8 = 0x80;
 
 #[derive(Serialize)]
 pub struct MidiInterface {
     pub(crate) out_buffer: Vec<(u8, u64)>,
-    last_port_c: u8,
 }
 
 impl Default for MidiInterface {
     fn default() -> Self {
         Self {
             out_buffer: Vec::with_capacity(MAX_MIDI_BUFFER),
-            last_port_c: 0,
         }
     }
 }
@@ -41,13 +39,16 @@ impl MidiInterface {
     }
 
     #[inline]
-    pub fn update(&mut self, port_a: u8, port_c: u8, cycle_count: u64) {
-        let rising_edge = (port_c & STROBE_BIT) != 0 && (self.last_port_c & STROBE_BIT) == 0;
+    pub fn update(&mut self, port_a: u8, port_c: u8, cycle_count: u64) -> bool {
+        let obf_active = (port_c & OBF_BIT) == 0;
 
-        if rising_edge && self.out_buffer.len() < MAX_MIDI_BUFFER {
-            self.out_buffer.push((port_a, cycle_count));
+        if obf_active {
+            if self.out_buffer.len() < MAX_MIDI_BUFFER {
+                self.out_buffer.push((port_a, cycle_count));
+            }
+            true
+        } else {
+            false
         }
-
-        self.last_port_c = port_c;
     }
 }
