@@ -26,6 +26,8 @@ This project is a reasonably accurate emulation of the Soviet 8-bit home compute
 
 This project set out to give a great machine a second life, and a musical one at that. I had been working mostly in live coding before, but decided that working with church organs called for something more serious, and so resolved to turn to, that is, offline assembling. To that end I equipped the emulator with MIDI via VV55A and the [Apogee SDK](https://github.com/coignard/apogee-sdk) for flat assembler g, which includes VM80A assembler definitions and other things useful for development. Since the aim was accuracy in MIDI timing and minimising jitter, the synchronisation mechanism is tied to the sound card clock: a deliberate compromise, due to which video stuttering may occur on weaker hardware, but the emulation stream itself will remain smooth.
 
+<a href="https://soundcloud.com/coignard/acts-of-god">**Hear it in action ▶**</a>
+
 ## Install
 
 To download the source code, build the Apogee binary, and install it in `$HOME/.cargo/bin` in one go run:
