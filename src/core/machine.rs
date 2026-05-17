@@ -395,7 +395,7 @@ mod tests {
 
         let invalid_files = [
             ("ducks.rka", 0x2061),
-            ("kindzadza.rka", 0x2FED),
+            ("kindzadza.rka", 0x2FED), // Кю!
             ("kletavt.rka", 0x4E9A),
             ("rc.rka", 0x77D4),
             ("robocop.rka", 0x4B5E),
