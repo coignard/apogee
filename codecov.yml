@@ -21,7 +21,7 @@ coverage:
         threshold: 1%
 ignore:
   - "tests"
-  - "dist"
+  - "firmware"
   - "src/main.rs"
   - "src/app"
 comment:
