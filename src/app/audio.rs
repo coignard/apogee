@@ -52,7 +52,7 @@ impl AudioSystem {
 
         let stream = device
             .build_output_stream(
-                &config.into(),
+                config.into(),
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     for frame in data.chunks_mut(channels) {
                         if let Ok(mixed) = rx.try_recv() {
