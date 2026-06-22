@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 
 use crossbeam_channel::{Receiver, Sender};
 use pixels::{Pixels, SurfaceTexture};
+#[cfg(not(target_os = "macos"))]
 use spin_sleep::SpinSleeper;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -59,6 +60,263 @@ const FRAME_CHANNEL_CAPACITY: usize = 2;
 const AUDIO_LATENCY_FRAMES_NUMER: u64 = 3;
 const AUDIO_LATENCY_FRAMES_DENOM: u64 = 2;
 const WINDOW_SCALE: f64 = 2.0;
+
+#[cfg(not(target_os = "macos"))]
+pub struct MidiConn(midir::MidiOutputConnection);
+
+#[cfg(not(target_os = "macos"))]
+impl MidiConn {
+    pub fn new(conn: midir::MidiOutputConnection) -> Self {
+        Self(conn)
+    }
+
+    #[inline]
+    pub fn send_now(&mut self, msg: &[u8]) {
+        let _ = self.0.send(msg);
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub struct MidiConn {
+    port: coremidi::OutputPort,
+    dest: coremidi::Destination,
+}
+
+#[cfg(target_os = "macos")]
+impl MidiConn {
+    pub fn new(port: coremidi::OutputPort, dest: coremidi::Destination) -> Self {
+        Self { port, dest }
+    }
+
+    #[inline]
+    pub fn send_now(&mut self, msg: &[u8]) {
+        self.send_at(msg, 0);
+    }
+
+    #[inline]
+    pub fn send_at(&mut self, msg: &[u8], host_ts: u64) {
+        let buf = coremidi::PacketBuffer::new(host_ts, msg);
+        let _ = self.port.send(&self.dest, &buf);
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[link(name = "CoreAudio", kind = "framework")]
+unsafe extern "C" {
+    fn AudioGetCurrentHostTime() -> u64;
+    fn AudioConvertNanosToHostTime(in_nanos: u64) -> u64;
+}
+
+#[cfg(target_os = "macos")]
+#[inline]
+fn now_host() -> u64 {
+    unsafe { AudioGetCurrentHostTime() }
+}
+
+#[cfg(target_os = "macos")]
+#[inline]
+fn nanos_to_host(nanos: u64) -> u64 {
+    unsafe { AudioConvertNanosToHostTime(nanos) }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn run_midi_thread(
+    mut midi_conn: MidiConn,
+    rx: Receiver<MidiThreadMsg>,
+    cpu_freq: f64,
+    frame_duration_secs: f64,
+    sync_lag_threshold: Duration,
+) {
+    let sleeper = SpinSleeper::default();
+    let mut anchor: Option<(Instant, u64)> = None;
+    let mut active_notes = [0u128; MIDI_CHANNELS_COUNT as usize];
+    let mut queue = std::collections::VecDeque::new();
+    let mut fast_forward = false;
+
+    loop {
+        let msg = if let Some(m) = queue.pop_front() {
+            m
+        } else {
+            match rx.recv() {
+                Ok(m) => m,
+                Err(_) => break,
+            }
+        };
+
+        match msg {
+            MidiThreadMsg::SetFastForward(ff) => {
+                fast_forward = ff;
+                if !ff {
+                    anchor = None;
+                }
+            }
+            MidiThreadMsg::HardReset => {
+                silence_active_notes(&mut active_notes, &mut midi_conn);
+                anchor = None;
+                queue.clear();
+            }
+            MidiThreadMsg::Event(midi_data, target_cycle) => {
+                if fast_forward {
+                    track_note(&midi_data, &mut active_notes);
+                    midi_conn.send_now(&midi_data);
+                    continue;
+                }
+
+                let now = Instant::now();
+                let (anchor_time, anchor_cycle) = *anchor.get_or_insert_with(|| {
+                    let latency_secs = frame_duration_secs
+                        * (AUDIO_LATENCY_FRAMES_NUMER as f64 / AUDIO_LATENCY_FRAMES_DENOM as f64);
+                    let delay = Duration::from_secs_f64(latency_secs);
+                    (now + delay, target_cycle)
+                });
+
+                let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
+                let target_time =
+                    anchor_time + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
+
+                let mut aborted = false;
+                loop {
+                    let current_now = Instant::now();
+                    if current_now >= target_time {
+                        break;
+                    }
+
+                    let remaining = target_time.duration_since(current_now);
+                    if remaining > Duration::from_millis(2) {
+                        let deadline = target_time - Duration::from_millis(2);
+                        match rx.recv_deadline(deadline) {
+                            Ok(MidiThreadMsg::HardReset) => {
+                                silence_active_notes(&mut active_notes, &mut midi_conn);
+                                anchor = None;
+                                queue.clear();
+                                aborted = true;
+                                break;
+                            }
+                            Ok(MidiThreadMsg::SetFastForward(true)) => {
+                                fast_forward = true;
+                                anchor = None;
+                                aborted = true;
+                                track_note(&midi_data, &mut active_notes);
+                                midi_conn.send_now(&midi_data);
+                                break;
+                            }
+                            Ok(MidiThreadMsg::SetFastForward(false)) => {
+                                fast_forward = false;
+                            }
+                            Ok(event @ MidiThreadMsg::Event(..)) => {
+                                queue.push_back(event);
+                            }
+                            Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
+                            Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                                aborted = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        sleeper.sleep_until(target_time);
+                        break;
+                    }
+                }
+
+                if !aborted {
+                    if Instant::now().duration_since(target_time) > sync_lag_threshold {
+                        track_note(&midi_data, &mut active_notes);
+
+                        while let Some(stale) = queue.pop_front().or_else(|| rx.try_recv().ok()) {
+                            match stale {
+                                MidiThreadMsg::Event(d, _) => {
+                                    track_note(&d, &mut active_notes);
+                                }
+                                MidiThreadMsg::SetFastForward(ff) => {
+                                    fast_forward = ff;
+                                }
+                                MidiThreadMsg::HardReset => break,
+                            }
+                        }
+
+                        silence_active_notes(&mut active_notes, &mut midi_conn);
+                        anchor = None;
+                    } else {
+                        track_note(&midi_data, &mut active_notes);
+                        midi_conn.send_now(&midi_data);
+                    }
+                }
+            }
+        }
+    }
+
+    silence_active_notes(&mut active_notes, &mut midi_conn);
+}
+
+#[cfg(target_os = "macos")]
+fn run_midi_thread(
+    mut midi_conn: MidiConn,
+    rx: Receiver<MidiThreadMsg>,
+    cpu_freq: f64,
+    frame_duration_secs: f64,
+    sync_lag_threshold: Duration,
+) {
+    let lag_threshold_host = nanos_to_host(sync_lag_threshold.as_nanos() as u64);
+
+    let mut anchor: Option<(u64, u64)> = None;
+    let mut active_notes = [0u128; MIDI_CHANNELS_COUNT as usize];
+    let mut fast_forward = false;
+
+    while let Ok(msg) = rx.recv() {
+        match msg {
+            MidiThreadMsg::SetFastForward(ff) => {
+                fast_forward = ff;
+                if !ff {
+                    anchor = None;
+                }
+            }
+            MidiThreadMsg::HardReset => {
+                let _ = coremidi::flush();
+                silence_active_notes(&mut active_notes, &mut midi_conn);
+                anchor = None;
+            }
+            MidiThreadMsg::Event(midi_data, target_cycle) => {
+                if fast_forward {
+                    track_note(&midi_data, &mut active_notes);
+                    midi_conn.send_now(&midi_data);
+                    continue;
+                }
+
+                let (anchor_host, anchor_cycle) = *anchor.get_or_insert_with(|| {
+                    let latency_secs = frame_duration_secs
+                        * (AUDIO_LATENCY_FRAMES_NUMER as f64 / AUDIO_LATENCY_FRAMES_DENOM as f64);
+                    let latency_host = nanos_to_host((latency_secs * 1.0e9) as u64);
+                    (now_host() + latency_host, target_cycle)
+                });
+
+                let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
+                let delta_nanos = (delta_cycles as f64 / cpu_freq * 1.0e9) as u64;
+                let target_host = anchor_host + nanos_to_host(delta_nanos);
+
+                let now = now_host();
+                if now > target_host && now - target_host > lag_threshold_host {
+                    track_note(&midi_data, &mut active_notes);
+                    while let Ok(stale) = rx.try_recv() {
+                        match stale {
+                            MidiThreadMsg::Event(d, _) => track_note(&d, &mut active_notes),
+                            MidiThreadMsg::SetFastForward(ff) => fast_forward = ff,
+                            MidiThreadMsg::HardReset => break,
+                        }
+                    }
+                    let _ = coremidi::flush();
+                    silence_active_notes(&mut active_notes, &mut midi_conn);
+                    anchor = None;
+                } else {
+                    track_note(&midi_data, &mut active_notes);
+                    midi_conn.send_at(&midi_data, target_host);
+                }
+            }
+        }
+    }
+
+    let _ = coremidi::flush();
+    silence_active_notes(&mut active_notes, &mut midi_conn);
+}
 
 #[derive(Clone)]
 pub struct MachineConfig {
@@ -123,7 +381,7 @@ pub struct AppConfig {
     pub debug_mode: bool,
     pub recorder: Option<ReplayRecorder>,
     pub player: Option<ReplayPlayer>,
-    pub midi_out: Option<midir::MidiOutputConnection>,
+    pub midi_out: Option<MidiConn>,
     pub keyboard_layout: KeyboardLayout,
 }
 
@@ -171,140 +429,18 @@ impl App {
             Duration::from_secs_f64(frame_duration_secs * MIDI_SYNC_LAG_FRAMES);
 
         let (midi_tx, midi_thread) = match config.midi_out {
-            Some(mut midi_conn) => {
+            Some(midi_conn) => {
                 let (tx, rx) = crossbeam_channel::unbounded::<MidiThreadMsg>();
                 let handle = std::thread::Builder::new()
                     .name("midi".into())
                     .spawn(move || {
-                        let sleeper = SpinSleeper::default();
-                        let mut anchor: Option<(Instant, u64)> = None;
-                        let mut active_notes = [0u128; MIDI_CHANNELS_COUNT as usize];
-                        let mut queue = std::collections::VecDeque::new();
-                        let mut fast_forward = false;
-
-                        loop {
-                            let msg = if let Some(m) = queue.pop_front() {
-                                m
-                            } else {
-                                match rx.recv() {
-                                    Ok(m) => m,
-                                    Err(_) => break,
-                                }
-                            };
-
-                            match msg {
-                                MidiThreadMsg::SetFastForward(ff) => {
-                                    fast_forward = ff;
-                                    if !ff {
-                                        anchor = None;
-                                    }
-                                }
-                                MidiThreadMsg::HardReset => {
-                                    silence_active_notes(&mut active_notes, &mut midi_conn);
-                                    anchor = None;
-                                    queue.clear();
-                                }
-                                MidiThreadMsg::Event(midi_data, target_cycle) => {
-                                    if fast_forward {
-                                        track_note(&midi_data, &mut active_notes);
-                                        let _ = midi_conn.send(&midi_data);
-                                        continue;
-                                    }
-
-                                    let now = Instant::now();
-                                    let (anchor_time, anchor_cycle) =
-                                        *anchor.get_or_insert_with(|| {
-                                            let latency_secs = frame_duration_secs
-                                                * (AUDIO_LATENCY_FRAMES_NUMER as f64
-                                                    / AUDIO_LATENCY_FRAMES_DENOM as f64);
-                                            let delay = Duration::from_secs_f64(latency_secs);
-                                            (now + delay, target_cycle)
-                                        });
-
-                                    let delta_cycles = target_cycle.saturating_sub(anchor_cycle);
-                                    let target_time = anchor_time
-                                        + Duration::from_secs_f64(delta_cycles as f64 / cpu_freq);
-
-                                    let mut aborted = false;
-                                    loop {
-                                        let current_now = Instant::now();
-                                        if current_now >= target_time {
-                                            break;
-                                        }
-
-                                        let remaining = target_time.duration_since(current_now);
-                                        if remaining > Duration::from_millis(2) {
-                                            let deadline = target_time - Duration::from_millis(2);
-                                            match rx.recv_deadline(deadline) {
-                                                Ok(MidiThreadMsg::HardReset) => {
-                                                    silence_active_notes(
-                                                        &mut active_notes,
-                                                        &mut midi_conn,
-                                                    );
-                                                    anchor = None;
-                                                    queue.clear();
-                                                    aborted = true;
-                                                    break;
-                                                }
-                                                Ok(MidiThreadMsg::SetFastForward(true)) => {
-                                                    fast_forward = true;
-                                                    anchor = None;
-                                                    aborted = true;
-                                                    track_note(&midi_data, &mut active_notes);
-                                                    let _ = midi_conn.send(&midi_data);
-                                                    break;
-                                                }
-                                                Ok(MidiThreadMsg::SetFastForward(false)) => {
-                                                    fast_forward = false;
-                                                }
-                                                Ok(event @ MidiThreadMsg::Event(..)) => {
-                                                    queue.push_back(event);
-                                                }
-                                                Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
-                                                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
-                                                    aborted = true;
-                                                    break;
-                                                }
-                                            }
-                                        } else {
-                                            sleeper.sleep_until(target_time);
-                                            break;
-                                        }
-                                    }
-
-                                    if !aborted {
-                                        if Instant::now().duration_since(target_time)
-                                            > sync_lag_threshold
-                                        {
-                                            track_note(&midi_data, &mut active_notes);
-
-                                            while let Some(stale) = queue
-                                                .pop_front()
-                                                .or_else(|| rx.try_recv().ok())
-                                            {
-                                                match stale {
-                                                    MidiThreadMsg::Event(d, _) => {
-                                                        track_note(&d, &mut active_notes);
-                                                    }
-                                                    MidiThreadMsg::SetFastForward(ff) => {
-                                                        fast_forward = ff;
-                                                    }
-                                                    MidiThreadMsg::HardReset => break,
-                                                }
-                                            }
-
-                                            silence_active_notes(&mut active_notes, &mut midi_conn);
-                                            anchor = None;
-                                        } else {
-                                            track_note(&midi_data, &mut active_notes);
-                                            let _ = midi_conn.send(&midi_data);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        silence_active_notes(&mut active_notes, &mut midi_conn);
+                        run_midi_thread(
+                            midi_conn,
+                            rx,
+                            cpu_freq,
+                            frame_duration_secs,
+                            sync_lag_threshold,
+                        )
                     })
                     .expect("Failed to spawn MIDI thread");
                 (Some(tx), Some(handle))
@@ -836,17 +972,17 @@ fn track_note(msg: &[u8], active_notes: &mut [u128; MIDI_CHANNELS_COUNT as usize
 
 fn silence_active_notes(
     active_notes: &mut [u128; MIDI_CHANNELS_COUNT as usize],
-    midi_conn: &mut midir::MidiOutputConnection,
+    midi_conn: &mut MidiConn,
 ) {
     for ch in 0..MIDI_CHANNELS_COUNT {
         let mut bits = active_notes[ch as usize];
         while bits != 0 {
             let note = bits.trailing_zeros() as u8;
-            let _ = midi_conn.send(&[MIDI_STATUS_NOTE_OFF | ch, note, 0]);
+            midi_conn.send_now(&[MIDI_STATUS_NOTE_OFF | ch, note, 0]);
             bits &= !(1u128 << note);
         }
         active_notes[ch as usize] = 0;
-        let _ = midi_conn.send(&[MIDI_STATUS_CONTROL_CHANGE | ch, MIDI_CC_ALL_NOTES_OFF, 0]);
-        let _ = midi_conn.send(&[MIDI_STATUS_CONTROL_CHANGE | ch, MIDI_CC_ALL_SOUND_OFF, 0]);
+        midi_conn.send_now(&[MIDI_STATUS_CONTROL_CHANGE | ch, MIDI_CC_ALL_NOTES_OFF, 0]);
+        midi_conn.send_now(&[MIDI_STATUS_CONTROL_CHANGE | ch, MIDI_CC_ALL_SOUND_OFF, 0]);
     }
 }

@@ -26,7 +26,7 @@ use winit::event_loop::EventLoop;
 
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::KeyboardLayout;
-use crate::app::{App, AppConfig, MachineConfig};
+use crate::app::{App, AppConfig, MachineConfig, MidiConn};
 
 use apogee_rs::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::Machine;
@@ -37,6 +37,93 @@ const CHARGEN_ROM: &[u8] = include_bytes!("../firmware/chargen.rom");
 
 const MONITOR_ROM_HASH: &str = include_str!("../firmware/monitor.rom.sha256").trim_ascii();
 const CHARGEN_ROM_HASH: &str = include_str!("../firmware/chargen.rom.sha256").trim_ascii();
+
+#[cfg(not(target_os = "macos"))]
+fn list_midi_outputs(client_name: &str) {
+    if let Ok(midi_out) = midir::MidiOutput::new(client_name) {
+        for (i, port) in midi_out.ports().iter().enumerate() {
+            if let Ok(name) = midi_out.port_name(port) {
+                println!("{}: {}", i, name);
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn open_midi_output(client_name: &str, midi_arg: &str) -> Option<MidiConn> {
+    let midi_out = midir::MidiOutput::new(client_name).ok()?;
+    let ports = midi_out.ports();
+    let target_port = if midi_arg.is_empty() {
+        ports.first().cloned()
+    } else {
+        ports
+            .iter()
+            .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
+            .or_else(|| {
+                midi_arg
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|idx| ports.get(idx))
+            })
+            .cloned()
+    };
+
+    if let Some(port) = target_port {
+        let conn_name = midi_out
+            .port_name(&port)
+            .unwrap_or_else(|_| format!("{} MIDI Out", client_name));
+        midi_out.connect(&port, &conn_name).ok().map(MidiConn::new)
+    } else {
+        #[cfg(unix)]
+        {
+            use midir::os::unix::VirtualOutput;
+            midi_out.create_virtual(midi_arg).ok().map(MidiConn::new)
+        }
+        #[cfg(not(unix))]
+        {
+            None
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn list_midi_outputs(_client_name: &str) {
+    for i in 0..coremidi::Destinations::count() {
+        if let Some(dest) = coremidi::Destination::from_index(i) {
+            let name = dest
+                .display_name()
+                .unwrap_or_else(|| String::from("Unknown Device"));
+            println!("{}: {}", i, name);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn open_midi_output(client_name: &str, midi_arg: &str) -> Option<MidiConn> {
+    let count = coremidi::Destinations::count();
+    if count == 0 {
+        return None;
+    }
+
+    let index = if midi_arg.is_empty() {
+        Some(0)
+    } else {
+        (0..count)
+            .find(|&i| {
+                coremidi::Destination::from_index(i)
+                    .and_then(|d| d.display_name())
+                    .is_some_and(|name| name == *midi_arg)
+            })
+            .or_else(|| midi_arg.parse::<usize>().ok().filter(|&idx| idx < count))
+    };
+
+    let dest = coremidi::Destination::from_index(index?)?;
+    let client = coremidi::Client::new(client_name).ok()?;
+    let port = client
+        .output_port(&format!("{} MIDI Out", client_name))
+        .ok()?;
+    Some(MidiConn::new(port, dest))
+}
 
 fn check_integrity() -> Result<()> {
     let verify = |name: &str, data: &[u8], expected: &str| -> Result<()> {
@@ -182,13 +269,7 @@ fn main() -> Result<()> {
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
     if args.midi_list {
-        if let Ok(midi_out) = midir::MidiOutput::new("Apogee BK-01") {
-            for (i, port) in midi_out.ports().iter().enumerate() {
-                if let Ok(name) = midi_out.port_name(port) {
-                    println!("{}: {}", i, name);
-                }
-            }
-        }
+        list_midi_outputs("Apogee BK-01");
         return Ok(());
     }
 
@@ -291,42 +372,7 @@ fn main() -> Result<()> {
     let midi_conn = if rom_payload.is_none()
         && let Some(midi_arg) = &args.midi
     {
-        midir::MidiOutput::new("Apogee BK-01")
-            .ok()
-            .and_then(|midi_out| {
-                let ports = midi_out.ports();
-                let target_port = if midi_arg.is_empty() {
-                    ports.first().cloned()
-                } else {
-                    ports
-                        .iter()
-                        .find(|p| midi_out.port_name(p).is_ok_and(|name| name == *midi_arg))
-                        .or_else(|| {
-                            midi_arg
-                                .parse::<usize>()
-                                .ok()
-                                .and_then(|idx| ports.get(idx))
-                        })
-                        .cloned()
-                };
-
-                if let Some(port) = target_port {
-                    let conn_name = midi_out
-                        .port_name(&port)
-                        .unwrap_or_else(|_| "Apogee BK-01 MIDI Out".to_string());
-                    midi_out.connect(&port, &conn_name).ok()
-                } else {
-                    #[cfg(unix)]
-                    {
-                        use midir::os::unix::VirtualOutput;
-                        midi_out.create_virtual(midi_arg).ok()
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        None
-                    }
-                }
-            })
+        open_midi_output("Apogee BK-01", midi_arg)
     } else {
         None
     };
