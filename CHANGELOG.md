@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0
+
+On macOS the MIDI output now uses CoreMIDI directly with host-timestamped, driver-scheduled delivery instead of midir's immediate send. Each message is handed to the driver stamped with the exact host time derived from the emulated CPU cycle on which the music program emitted it, so notes land on their cycle-accurate beat without the scheduler wake-up jitter of a busy-wait followed by an immediate send. The note-to-note intervals computed by the assembly program are reproduced exactly at the output. Every other platform continues to use midir's immediate-send API and is unchanged.
+
+### Added
+
+- `MidiConn` MIDI-output abstraction with two `cfg`-gated backends: a newtype over `midir::MidiOutputConnection` off macOS, and a `coremidi::OutputPort` + `coremidi::Destination` pair on macOS exposing `send_now()` and a timestamped `send_at()`.
+- macOS host-clock helpers `now_host()` / `nanos_to_host()` bound to `AudioGetCurrentHostTime` / `AudioConvertNanosToHostTime` from the CoreAudio framework.
+- macOS `run_midi_thread` that anchors the emulated cycle counter to a CoreMIDI host-time grid `(anchor_host, anchor_cycle)` and schedules every message at `anchor_host + delta_cycles / cpu_freq`, letting the driver deliver it on time; it re-anchors and calls `coremidi::flush()` on stalls, pauses, and hard resets.
+
+### Changed
+
+- MIDI backend is now platform-specific in `Cargo.toml`: `coremidi 0.9.1` for `cfg(target_os = "macos")`, `midir 0.11.0` for `cfg(not(target_os = "macos"))`.
+- `AppConfig::midi_out` is now `Option<MidiConn>` instead of `Option<midir::MidiOutputConnection>`.
+- The inline MIDI thread closure is extracted into a `cfg`-gated `run_midi_thread`; the non-macOS path keeps the existing spin-sleep-then-send timing unchanged.
+- `silence_active_notes()` now takes `&mut MidiConn` and sends through `send_now()`.
+- MIDI device discovery and `--midi` resolution are factored into `cfg`-gated `list_midi_outputs()` / `open_midi_output()`; on macOS they enumerate `coremidi::Destinations` and select by name or index.
+
 ## 0.3.3
 
 ### Changes
