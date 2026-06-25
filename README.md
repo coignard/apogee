@@ -90,7 +90,7 @@ Thanks to Kakos Nonos for sharing his Apogee BK-01 programs used in the test sui
 
 ## License
 
-The Apogee source code is © 2026 René Coignard and licensed under the [GNU General Public License v3.0 or later](LICENSE).
+The [Apogee](https://github.com/coignard/apogee) source code is © 2026 René Coignard and licensed under the [GNU General Public License v3.0 or later](LICENSE).
 
 The [Apogee SDK](https://github.com/coignard/apogee-sdk) source code is © 2026 René Coignard and licensed under the [zlib License](https://github.com/coignard/apogee-sdk/blob/main/LICENSE).
 
