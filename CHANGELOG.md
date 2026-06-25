@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+### Added
+
+- `--nostalgie[=<preset>]` enables a CRT display effect ported from cool-retro-term, rendered as a wgpu post-processing pass over the framebuffer.
+- Fullscreen toggle with `F11` or `Alt`+`Enter`.
+
 ## 0.4.0
 
 On macOS the MIDI output now uses CoreMIDI directly with host-timestamped, driver-scheduled delivery instead of midir's immediate send. Each message is handed to the driver stamped with the exact host time derived from the emulated CPU cycle on which the music program emitted it, so notes land on their cycle-accurate beat without the scheduler wake-up jitter of a busy-wait followed by an immediate send. The note-to-note intervals computed by the assembly program are reproduced exactly at the output. Every other platform continues to use midir's immediate-send API and is unchanged.
