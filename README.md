@@ -63,7 +63,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-apogee-rs = "0.4.0"
+apogee-rs = "0.5.0"
 ```
 
 ## Test
@@ -86,7 +86,7 @@ Please note that changes to [iz80](https://github.com/coignard/iz80) that affect
 
 ## Credits
 
-Thanks to Kakos Nonos for sharing his Apogee BK-01 programs used in the test suite, [Victor A. Pykhonin](https://github.com/vpyk) for helping debug checksums and KR580VI53 and for [emu80](https://github.com/vpyk/emu80v4) which was the main reference for this emulator, and Olga Podivilova for the Apogee BK-01 illustration.
+Thanks to Kakos Nonos for sharing his Apogee BK-01 programs used in the test suite, [Victor A. Pykhonin](https://github.com/vpyk) for helping debug checksums and KR580VI53 and for [emu80](https://github.com/vpyk/emu80v4) which was the main reference for this emulator, Filippo Scognamiglio for his cool-retro-term shaders, and Olga Podivilova for the Apogee BK-01 illustration.
 
 ## License
 
