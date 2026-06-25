@@ -26,6 +26,7 @@ use winit::event_loop::EventLoop;
 
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::KeyboardLayout;
+use crate::app::shaders::Preset;
 use crate::app::{App, AppConfig, MachineConfig, MidiConn};
 
 use apogee_rs::core::debug::{ReplayMetadata, ReplayPlayer, ReplayRecorder};
@@ -218,6 +219,19 @@ struct Args {
     #[arg(long, help_heading = "Display options")]
     gigascreen: bool,
 
+    /// Enable the CRT shader
+    /// Default: built-in profile
+    #[arg(
+        long,
+        value_name = "preset",
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "@default",
+        help_heading = "Display options",
+        verbatim_doc_comment
+    )]
+    nostalgie: Option<String>,
+
     /// Connect to a MIDI output port by name or index
     /// Default: first available port
     #[arg(
@@ -397,6 +411,18 @@ fn main() -> Result<()> {
         })
     });
 
+    let nostalgie = match args.nostalgie.as_deref() {
+        None => None,
+        Some("@default") => Some(Preset::default_preset()),
+        Some(path) => {
+            let json = std::fs::read_to_string(path)
+                .with_context(|| format!("Failed to read nostalgie preset '{path}'"))?;
+            let preset = Preset::from_json(&json)
+                .with_context(|| format!("Failed to parse nostalgie preset '{path}'"))?;
+            Some(preset)
+        }
+    };
+
     let mut app = App::new(
         machine_config,
         video,
@@ -407,6 +433,7 @@ fn main() -> Result<()> {
             player,
             midi_out: midi_conn,
             keyboard_layout: args.keyboard_layout,
+            nostalgie,
         },
     );
 

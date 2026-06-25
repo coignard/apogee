@@ -17,6 +17,7 @@
 
 pub mod audio;
 pub mod keyboard;
+pub mod shaders;
 
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -30,11 +31,12 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::window::{Window, WindowId};
+use winit::keyboard::{KeyCode, ModifiersState, PhysicalKey};
+use winit::window::{Fullscreen, Window, WindowId};
 
 use crate::app::audio::AudioSystem;
 use crate::app::keyboard::{KeyboardLayout, KeyboardTranslator};
+use crate::app::shaders::{Preset, ShaderRenderer};
 
 use apogee_rs::core::debug::{ReplayPlayer, ReplayRecorder};
 use apogee_rs::core::machine::{CPU_DIVIDER, DEFAULT_FRAME_CYCLES, MASTER_CLOCK_HZ, Machine};
@@ -383,12 +385,14 @@ pub struct AppConfig {
     pub player: Option<ReplayPlayer>,
     pub midi_out: Option<MidiConn>,
     pub keyboard_layout: KeyboardLayout,
+    pub nostalgie: Option<Preset>,
 }
 
 pub struct App {
     audio: AudioSystem,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+    shader: Option<ShaderRenderer>,
 
     color_mode: ColorMode,
     initial_width: u32,
@@ -403,6 +407,7 @@ pub struct App {
 
     has_player: bool,
     keyboard_translator: KeyboardTranslator,
+    modifiers: ModifiersState,
 
     cmd_tx: Sender<EmulationCommand>,
     frame_rx: Receiver<EmulationFrame>,
@@ -483,6 +488,9 @@ impl App {
             audio,
             window: None,
             pixels: None,
+            shader: config
+                .nostalgie
+                .map(|preset| ShaderRenderer::new(initial_width, initial_height, preset)),
             color_mode,
             initial_width,
             initial_height,
@@ -494,11 +502,23 @@ impl App {
             is_fast_forwarding: false,
             has_player,
             keyboard_translator,
+            modifiers: ModifiersState::empty(),
             cmd_tx,
             frame_rx,
             emu_err_rx,
             emu_thread: Some(emu_thread),
             fatal_error: None,
+        }
+    }
+
+    fn toggle_fullscreen(&self) {
+        if let Some(window) = &self.window {
+            let next = if window.fullscreen().is_some() {
+                None
+            } else {
+                Some(Fullscreen::Borderless(None))
+            };
+            window.set_fullscreen(next);
         }
     }
 }
@@ -540,12 +560,25 @@ impl ApplicationHandler for App {
 
         self.pixels =
             Some(Pixels::new(width, height, surface).expect("Failed to create pixels surface"));
+
+        if let Some(shader) = &mut self.shader {
+            if let Some(pixels) = &self.pixels {
+                shader.set_format(pixels.surface_texture_format());
+            }
+            let inner = window.inner_size();
+            shader.set_surface_size(inner.width, inner.height);
+            shader.set_virtual_resolution(width, height);
+        }
+
         self.window = Some(window);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.modifiers = modifiers.state();
+            }
             WindowEvent::Resized(new_size) if new_size.width > 0 && new_size.height > 0 => {
                 if let Some(pixels) = &mut self.pixels
                     && let Err(err) = pixels.resize_surface(new_size.width, new_size.height)
@@ -555,11 +588,24 @@ impl ApplicationHandler for App {
                     event_loop.exit();
                     return;
                 }
+                if let Some(shader) = &mut self.shader {
+                    shader.set_surface_size(new_size.width, new_size.height);
+                }
                 if let Some(win) = &self.window {
                     win.request_redraw();
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                if let PhysicalKey::Code(key_code) = event.physical_key
+                    && event.state == ElementState::Pressed
+                    && !event.repeat
+                {
+                    let alt_enter = key_code == KeyCode::Enter && self.modifiers.alt_key();
+                    if key_code == KeyCode::F11 || alt_enter {
+                        self.toggle_fullscreen();
+                        return;
+                    }
+                }
                 if let PhysicalKey::Code(key_code) = event.physical_key
                     && !event.repeat
                 {
@@ -609,9 +655,16 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::RedrawRequested => {
-                if let Some(pixels) = &mut self.pixels
-                    && let Err(err) = pixels.render()
-                {
+                let render_result = match (&mut self.shader, &self.pixels) {
+                    (Some(shader), Some(pixels)) => {
+                        pixels.render_with(|encoder, target, context| {
+                            shader.render(encoder, target, context)
+                        })
+                    }
+                    (None, Some(pixels)) => pixels.render(),
+                    _ => Ok(()),
+                };
+                if let Err(err) = render_result {
                     self.fatal_error =
                         Some(anyhow::Error::new(err).context("Pixels render failed"));
                     event_loop.exit();
@@ -667,6 +720,10 @@ impl ApplicationHandler for App {
                         Some(anyhow::Error::new(err).context("Pixels resize buffer failed"));
                     event_loop.exit();
                     return;
+                }
+
+                if let Some(shader) = &mut self.shader {
+                    shader.set_virtual_resolution(frame.width, frame.height);
                 }
             }
 
