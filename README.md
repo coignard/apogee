@@ -96,6 +96,8 @@ The [Apogee SDK](https://github.com/coignard/apogee-sdk) source code is © 2026 
 
 The [flat assembler g](https://github.com/coignard/fasmg) source code is © 2015-2025 Tomasz Grysztar and licensed under the [BSD 3-Clause License](https://github.com/coignard/fasmg/blob/master/core/license.txt).
 
+The [cool-retro-term](https://github.com/Swordfish90/cool-retro-term) shaders are © 2013-2021 Filippo Scognamiglio and licensed under the [GNU General Public License v3.0](https://github.com/Swordfish90/cool-retro-term/blob/master/gpl-3.0.txt).
+
 The `.rka` files in `tests/assets/` are Apogee BK-01 programs written by and © Kakos Nonos, included with his kind permission. Some programs may contain third-party assets whose rights belong to their respective owners. `proverka.rka` is included for testing purposes; its authorship and copyright status are unknown. If you are the copyright holder and object to its inclusion, please [open an issue](https://github.com/coignard/apogee/issues).
 
 <picture>
