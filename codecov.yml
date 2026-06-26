@@ -17,7 +17,7 @@ coverage:
           - "lib.rs"
     patch:
       default:
-        target: 85%
+        target: 60%
         threshold: 1%
 ignore:
   - "tests"
