@@ -16,7 +16,6 @@ allow = [
 
 [advisories]
 version = 2
-ignore = ["RUSTSEC-2026-0192"]
 
 [bans]
 multiple-versions = "allow"
