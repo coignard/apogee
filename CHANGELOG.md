@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.1
+
+### Changed
+- Bumped `bytes` to 1.12.1
+- Bumped `cc` to 1.2.66
+- Bumped `crossbeam-channel` to 0.5.16
+- Bumped `crossbeam-deque` to 0.8.7
+- Bumped `crossbeam-epoch` to 0.9.20
+- Bumped `crossbeam-utils` to 0.8.22
+- Bumped `jobserver` to 0.1.35
+- Bumped `memchr` to 2.8.3
+- Bumped `pxfm` to 0.1.30
+- Bumped `rustversion` to 1.0.23
+- Bumped `zerocopy` to 0.8.53
+- Bumped `zerocopy-derive` to 0.8.53
+
 ## 0.5.0
 
 ### Added
