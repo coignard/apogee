@@ -1,6 +1,6 @@
 [package]
 name = "apogee-rs"
-version = "0.5.1"
+version = "0.5.2"
 authors = [
     "René Coignard <contact@renecoignard.com>"
 ]

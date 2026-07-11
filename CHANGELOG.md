@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.2
+
+### Changed
+
+- Bumped bytemuck from 1.25.0 to 1.25.1.
+- Bumped bytemuck_derive from 1.10.2 to 1.11.0.
+- Bumped cc from 1.2.66 to 1.2.67.
+- Bumped zerocopy from 0.8.53 to 0.8.54.
+- Bumped zerocopy-derive from 0.8.53 to 0.8.54.
+
 ## 0.5.1
 
 ### Changed
