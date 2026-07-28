@@ -63,7 +63,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-apogee-rs = "0.5.2"
+apogee-rs = "0.5.3"
 ```
 
 ## Test

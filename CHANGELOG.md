@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.5.3
+
+### Changed
+
+- Bumped bitflags from 2.13.0 to 2.13.1.
+- Bumped bytemuck from 1.25.1 to 1.25.2.
+- Bumped cc from 1.2.67 to 1.4.0.
+- Bumped cfg_aliases from 0.2.1 to 0.2.2.
+- Bumped clap from 4.6.2 to 4.6.4.
+- Bumped clap_derive from 4.6.1 to 4.6.4.
+- Bumped coremidi-sys from 3.2.0 to 3.2.1.
+- Bumped either from 1.16.0 to 1.17.0.
+- Bumped foreign-types-macros from 0.2.3 to 0.2.4.
+- Bumped futures-core from 0.3.32 to 0.3.33.
+- Bumped futures-task from 0.3.32 to 0.3.33.
+- Bumped futures-util from 0.3.32 to 0.3.33.
+- Bumped glob from 0.3.3 to 0.3.4.
+- Bumped jni-min-helper from 0.3.2 to 0.3.3.
+- Bumped libc from 0.2.186 to 0.2.189.
+- Bumped portable-atomic from 1.13.1 to 1.14.0.
+- Bumped proc-macro2 from 1.0.106 to 1.0.107.
+- Bumped quick-xml from 0.39.4 to 0.41.0.
+- Bumped quote from 1.0.46 to 1.0.47.
+- Bumped serde_json from 1.0.150 to 1.0.151.
+- Bumped simd-adler32 from 0.3.9 to 0.3.10.
+- Bumped simd_cesu8 from 1.1.1 to 1.2.0.
+- Bumped thiserror from 2.0.18 to 2.0.19.
+- Bumped thiserror-impl from 2.0.18 to 2.0.19.
+- Bumped toml_edit from 0.25.12+spec-1.1.0 to 0.25.13+spec-1.1.0.
+- Bumped toml_parser from 1.1.2+spec-1.1.0 to 1.1.3+spec-1.1.0.
+- Bumped wayland-backend from 0.3.15 to 0.3.16.
+- Bumped wayland-client from 0.31.14 to 0.31.15.
+- Bumped wayland-scanner from 0.31.10 to 0.31.11.
+- Bumped winnow from 1.0.3 to 1.0.4.
+- Bumped zerocopy from 0.8.54 to 0.8.55.
+- Bumped zerocopy-derive from 0.8.54 to 0.8.55.
+- Bumped zmij from 1.0.21 to 1.0.23.
+
 ## 0.5.2
 
 ### Changed
