@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.5.4
+
+### Changed
+
+- Bumped android_system_properties from 0.1.5 to 0.1.6.
+- Bumped bytemuck_derive from 1.11.0 to 1.12.0.
+- Bumped cc from 1.4.0 to 1.4.2.
+- Bumped clap from 4.6.4 to 4.6.6.
+- Bumped clap_builder from 4.6.2 to 4.6.6.
+- Bumped coremidi from 0.9.1 to 0.9.2.
+- Bumped find-msvc-tools from 0.1.9 to 0.1.10.
+- Bumped futures-core from 0.3.33 to 0.3.34.
+- Bumped futures-task from 0.3.33 to 0.3.34.
+- Bumped futures-util from 0.3.33 to 0.3.34.
+- Bumped hybrid-array from 0.4.13 to 0.4.14.
+- Bumped jni-min-helper from 0.3.3 to 0.3.4.
+- Bumped js-sys from 0.3.103 to 0.3.104.
+- Bumped libredox from 0.1.18 to 0.1.19.
+- Bumped portable-atomic from 1.14.0 to 1.15.0.
+- Bumped redox_syscall from 0.9.0 to 0.9.1.
+- Bumped thiserror from 2.0.19 to 2.0.20.
+- Bumped thiserror-impl from 2.0.19 to 2.0.20.
+- Bumped wasm-bindgen from 0.2.126 to 0.2.127.
+- Bumped wasm-bindgen-futures from 0.4.76 to 0.4.77.
+- Bumped wasm-bindgen-macro from 0.2.126 to 0.2.127.
+- Bumped wasm-bindgen-macro-support from 0.2.126 to 0.2.127.
+- Bumped wasm-bindgen-shared from 0.2.126 to 0.2.127.
+- Bumped web-sys from 0.3.103 to 0.3.104.
+- Bumped xcursor from 0.3.10 to 0.3.11.
+- Bumped xml-rs from 0.8.28 to 0.8.29.
+- Bumped zerocopy from 0.8.55 to 0.8.56.
+- Bumped zerocopy-derive from 0.8.55 to 0.8.56.
+
 ## 0.5.3
 
 ### Changed
