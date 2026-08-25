@@ -110,7 +110,7 @@ impl VideoRenderer {
 
         let bg_color = [0, 0, 0, 255];
 
-        for px in self.frame_buffer.chunks_exact_mut(4) {
+        for px in self.frame_buffer.as_chunks_mut::<4>().0 {
             px.copy_from_slice(&bg_color);
         }
 
@@ -227,8 +227,10 @@ impl VideoRenderer {
             } else {
                 for (curr, prev) in self
                     .frame_buffer
-                    .chunks_exact_mut(4)
-                    .zip(self.prev_frame_buffer.chunks_exact_mut(4))
+                    .as_chunks_mut::<4>()
+                    .0
+                    .iter_mut()
+                    .zip(self.prev_frame_buffer.as_chunks_mut::<4>().0)
                 {
                     let r = ((curr[0] as u16 + prev[0] as u16) >> 1) as u8;
                     let g = ((curr[1] as u16 + prev[1] as u16) >> 1) as u8;
