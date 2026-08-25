@@ -706,8 +706,9 @@ impl ApplicationHandler for App {
         }
 
         if let Some(frame) = latest_frame {
-            let size_changed =
-                frame.width != self.current_width || frame.height != self.current_height;
+            let prev_width = self.current_width;
+            let prev_height = self.current_height;
+            let size_changed = frame.width != prev_width || frame.height != prev_height;
 
             if size_changed {
                 self.current_width = frame.width;
@@ -733,8 +734,9 @@ impl ApplicationHandler for App {
 
             if let Some(window) = &self.window {
                 if size_changed {
-                    let w = f64::from(frame.width) * WINDOW_SCALE;
-                    let h = f64::from(frame.height) * WINDOW_SCALE;
+                    let current = window.inner_size().to_logical::<f64>(window.scale_factor());
+                    let w = current.width * f64::from(frame.width) / f64::from(prev_width);
+                    let h = current.height * f64::from(frame.height) / f64::from(prev_height);
                     let _ = window.request_inner_size(LogicalSize::new(w, h));
                 }
                 window.request_redraw();
