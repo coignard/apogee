@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.5
+
+### Changed
+
+- Bumped cc from 1.4.2 to 1.4.4.
+- Bumped cpal from 0.18.1 to 0.18.2.
+- Bumped crc32fast from 1.5.0 to 1.5.1.
+- Bumped either from 1.17.0 to 1.18.0.
+- Bumped find-msvc-tools from 0.1.10 to 0.1.11.
+- Bumped libredox from 0.1.19 to 0.1.20.
+- Bumped log from 0.4.33 to 0.4.34.
+- Bumped ordered-float from 5.3.0 to 5.5.0.
+- Bumped pkg-config from 0.3.33 to 0.3.34.
+- Bumped redox_syscall from 0.9.1 to 0.9.3.
+- Bumped syn from 3.0.3 to 3.0.4.
+- Bumped wayland-backend from 0.3.16 to 0.3.17.
+
 ## 0.5.4
 
 ### Changed
