@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.5.6
+
+### Changed
+
+- Bumped bitflags from 2.13.1 to 2.13.2.
+- Bumped bytemuck_derive from 1.12.0 to 1.12.1.
+- Bumped cc from 1.4.4 to 1.4.7.
+- Bumped cfg-if from 1.0.4 to 1.0.5.
+- Bumped clap_lex from 1.1.0 to 1.1.1.
+- Bumped combine from 4.6.7 to 4.6.8.
+- Bumped cpufeatures from 0.3.0 to 0.3.1.
+- Bumped crc32fast from 1.5.1 to 1.5.2.
+- Bumped crossbeam-deque from 0.8.7 to 0.8.8.
+- Bumped crossbeam-epoch from 0.9.20 to 0.9.21.
+- Bumped crossbeam-utils from 0.8.22 to 0.8.23.
+- Bumped find-msvc-tools from 0.1.11 to 0.1.13.
+- Bumped flate2 from 1.1.9 to 1.1.10.
+- Bumped hermit-abi from 0.5.2 to 0.5.3.
+- Bumped hybrid-array from 0.4.14 to 0.4.15.
+- Bumped indexmap from 2.14.0 to 2.14.2.
+- Bumped js-sys from 0.3.104 to 0.3.105.
+- Bumped libredox from 0.1.20 to 0.1.25.
+- Bumped portable-atomic-util from 0.2.7 to 0.2.8.
+- Bumped redox_syscall from 0.9.3 to 0.9.4.
+- Bumped rustix from 1.1.4 to 1.1.5.
+- Bumped smallvec from 1.15.2 to 1.16.1.
+- Bumped syn from 3.0.4 to 3.0.6.
+- Bumped toml_edit from 0.25.13+spec-1.1.0 to 0.25.15+spec-1.1.0.
+- Bumped unicode-ident from 1.0.24 to 1.0.26.
+- Bumped wasm-bindgen from 0.2.127 to 0.2.128.
+- Bumped wasm-bindgen-futures from 0.4.77 to 0.4.78.
+- Bumped wasm-bindgen-macro from 0.2.127 to 0.2.128.
+- Bumped wasm-bindgen-macro-support from 0.2.127 to 0.2.128.
+- Bumped wasm-bindgen-shared from 0.2.127 to 0.2.128.
+- Bumped web-sys from 0.3.104 to 0.3.105.
+- Bumped zerocopy from 0.8.56 to 0.8.57.
+- Bumped zerocopy-derive from 0.8.56 to 0.8.57.
+
 ## 0.5.5
 
 ### Changed
